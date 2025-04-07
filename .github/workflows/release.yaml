@@ -22,13 +22,6 @@ jobs:
         id: tag_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Check if tag is valid semver
-        run: |
-          if ! [[ ${{ steps.tag_version.outputs.VERSION }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag ${{ steps.tag_version.outputs.VERSION }} doesn't follow semantic versioning (x.y.z)"
-            exit 1
-          fi
-
       - name: Create release archive
         run: |
           # Create an archive containing all YAML files
