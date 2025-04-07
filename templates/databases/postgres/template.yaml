@@ -13,10 +13,12 @@ metadata:
     unbind/template-name: {{ .Template.Name }}
     unbind/template-version: {{ .Template.Version }}
 spec:
-  teamId: {{ .TeamID | default "default" }}
+  teamId: {{ .TeamID }}
   postgresql:
     version: {{ .Parameters.version | default "17" }}
   numberOfInstances: {{ .Parameters.replicas | default 1 }}
+  allowedSourceRanges:
+    - 0.0.0.0/0
   volume:
     size: {{ .Parameters.storage | default "1Gi" }}
   resources:
