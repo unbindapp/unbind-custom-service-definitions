@@ -15,6 +15,7 @@ metadata:
     {{- end }}
 spec:
   teamId: {{ .TeamID }}
+  dockerImage: {{ .Parameters.dockerImage | default "unbindapp/spilo:17" }}
   postgresql:
     version: {{ .Parameters.version | default "17" | quote }}
   numberOfInstances: {{ .Parameters.replicas | default 1 }}

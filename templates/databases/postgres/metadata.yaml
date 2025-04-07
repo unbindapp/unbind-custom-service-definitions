@@ -11,6 +11,10 @@ schema:
   properties:
     labels:
       $ref: "#/imports/labelsSchema"
+    dockerImage:
+      type: "string"
+      description: "Spilo image version"
+      default: "unbindapp/spilo:17"
     version:
       type: "string"
       description: "PostgreSQL version"
