@@ -3,7 +3,7 @@ description: "Standard PostgreSQL database using zalando postgres-operator"
 type: "postgres-operator"
 version: "1.0.0"
 imports:
-  - path: "../common/s3-schema.yaml"
+  - path: "../../common/s3-schema.yaml"
     as: s3Schema
 schema:
   properties:
