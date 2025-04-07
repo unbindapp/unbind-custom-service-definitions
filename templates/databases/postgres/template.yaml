@@ -16,7 +16,7 @@ metadata:
 spec:
   teamId: {{ .TeamID }}
   postgresql:
-    version: {{ .Parameters.version | default "17" }}
+    version: {{ .Parameters.version | default "17" | quote }}
   numberOfInstances: {{ .Parameters.replicas | default 1 }}
   allowedSourceRanges:
     - 0.0.0.0/0
