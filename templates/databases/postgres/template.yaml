@@ -8,7 +8,7 @@ metadata:
     unbind-team: {{ .TeamID }}
     unbind-project: {{ .ProjectID }}
     unbind-environment: {{ .EnvironmentID }}
-    unbind-service: {{ .Name }}
+    unbind-service: {{ .ServiceID }}
     # Template-specific labels
     unbind/template-name: {{ .Template.Name }}
     unbind/template-version: {{ .Template.Version }}
