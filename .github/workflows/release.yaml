@@ -1,0 +1,71 @@
+name: Release YAML Templates
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # We need the full history for the tag information
+
+      - name: Get version from tag
+        id: tag_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Check if tag is valid semver
+        run: |
+          if ! [[ ${{ steps.tag_version.outputs.VERSION }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag ${{ steps.tag_version.outputs.VERSION }} doesn't follow semantic versioning (x.y.z)"
+            exit 1
+          fi
+
+      - name: Create release archive
+        run: |
+          # Create an archive containing all YAML files
+          mkdir release-archive
+          find . -name "*.yaml" -o -name "*.yml" | xargs -I{} cp --parents {} release-archive/
+          cd release-archive
+          zip -r ../yaml-templates-${{ steps.tag_version.outputs.VERSION }}.zip .
+          cd ..
+
+          # Create a tarball as well
+          cd release-archive
+          tar -czvf ../yaml-templates-${{ steps.tag_version.outputs.VERSION }}.tar.gz .
+          cd ..
+
+      - name: Get latest commit message
+        id: commit_message
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "COMMIT_MSG<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release v${{ steps.tag_version.outputs.VERSION }}
+          body: |
+            # YAML Templates Release v${{ steps.tag_version.outputs.VERSION }}
+
+            ## Latest Changes
+            ${{ steps.commit_message.outputs.COMMIT_MSG }}
+
+            ## Installation
+
+            Download the zip or tar.gz archive and extract to use the templates.
+          files: |
+            yaml-templates-${{ steps.tag_version.outputs.VERSION }}.zip
+            yaml-templates-${{ steps.tag_version.outputs.VERSION }}.tar.gz
+          draft: false
+          prerelease: false
