@@ -7,8 +7,8 @@ metadata:
     # Zalando labels
     team: {{ .TeamID }}
     # usd-specific labels
-    unbind/usd-type: {{ .Template.Type }}
-    unbind/usd-version: {{ .Template.Version }}
+    unbind/usd-type: {{ .Definition.Type }}
+    unbind/usd-version: {{ .Definition.Version }}
     unbind/usd-category: databases
     {{- range $key, $value := .Parameters.labels }}
     {{ $key }}: {{ $value | quote }}
