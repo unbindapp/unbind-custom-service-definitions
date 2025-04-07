@@ -5,8 +5,12 @@ version: "1.0.0"
 imports:
   - path: "../../common/s3-schema.yaml"
     as: s3Schema
+  - path: "../../common/labels.yaml"
+    as: labels
 schema:
   properties:
+    labels: 
+      $ref: "#/imports/labels"
     version:
       type: "string"
       description: "PostgreSQL version"

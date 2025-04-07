@@ -4,15 +4,15 @@ metadata:
   name: {{ .Name }}
   namespace: {{ .Namespace }} 
   labels:
+    # Zalando labels
     team: {{ .TeamID }}
-    # Standard labels from service
-    unbind-team: {{ .TeamID }}
-    unbind-project: {{ .ProjectID }}
-    unbind-environment: {{ .EnvironmentID }}
-    unbind-service: {{ .ServiceID }}
     # Template-specific labels
     unbind/template-name: {{ .Template.Name }}
     unbind/template-version: {{ .Template.Version }}
+    unbind/template-category: databases
+    {{- range $key, $value := .Parameters.labels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
 spec:
   teamId: {{ .TeamID }}
   postgresql:
