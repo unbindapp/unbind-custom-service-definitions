@@ -37,3 +37,5 @@ properties:
             type: "string"
             description: "Memory limit"
             default: "256Mi"
+required:
+  - replicas

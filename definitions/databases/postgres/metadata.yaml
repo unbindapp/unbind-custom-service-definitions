@@ -26,5 +26,3 @@ schema:
       enum: ["14", "15", "16", "17"]
     s3:
       $ref: "#/imports/s3Schema"
-  required:
-    - replicas
