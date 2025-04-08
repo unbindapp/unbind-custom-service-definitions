@@ -18,18 +18,18 @@ spec:
   dockerImage: {{ .Parameters.dockerImage | default "unbindapp/spilo:17" }}
   postgresql:
     version: {{ .Parameters.version | default "17" | quote }}
-  numberOfInstances: {{ .Parameters.replicas | default 1 }}
+  numberOfInstances: {{ .Parameters.common.replicas | default 1 }}
   allowedSourceRanges:
     - 0.0.0.0/0
   volume:
-    size: {{ .Parameters.storage | default "1Gi" }}
+    size: {{ .Parameters.common.storage | default "1Gi" }}
   resources:
     requests:
-      cpu: {{ .Parameters.resources.requests.cpu | default "100m" }}
-      memory: {{ .Parameters.resources.requests.memory | default "128Mi" }}
+      cpu: {{ .Parameters.common.resources.requests.cpu | default "100m" }}
+      memory: {{ .Parameters.common.resources.requests.memory | default "128Mi" }}
     limits:
-      cpu: {{ .Parameters.resources.limits.cpu | default "200m" }}
-      memory: {{ .Parameters.resources.limits.memory | default "256Mi" }}
+      cpu: {{ .Parameters.common.resources.limits.cpu | default "200m" }}
+      memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
   env:
     - name: ALLOW_NOSSL
       value: "true"
