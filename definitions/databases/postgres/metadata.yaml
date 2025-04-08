@@ -2,6 +2,7 @@ name: "PostgreSQL Database"
 description: "Standard PostgreSQL database using zalando postgres-operator"
 type: "postgres-operator"
 version: "1.0.0"
+port: 5432
 imports:
   - path: "../../common/base.yaml"
     as: base
