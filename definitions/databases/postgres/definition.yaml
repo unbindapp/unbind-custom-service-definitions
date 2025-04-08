@@ -35,7 +35,6 @@ spec:
     - "host    all all 10.0.0.0/8 md5"
     # Local loopback
     - "host    all all 127.0.0.1/32 trust"
-
   volume:
     size: {{ .Parameters.common.storage | default "1Gi" }}
   resources:
@@ -106,3 +105,24 @@ spec:
     - name: WALG_DISABLE_S3_SSE
       value: "true"
   {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Name }}-nodeport
+  namespace: {{ .Namespace }}
+  # usd-specific labels
+  unbind/usd-type: {{ .Definition.Type }}
+  unbind/usd-version: {{ .Definition.Version }}
+  unbind/usd-category: databases
+  {{- range $key, $value := .Parameters.labels }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+spec:
+  type: NodePort
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: {{ .Name }} 
