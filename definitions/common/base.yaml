@@ -32,7 +32,7 @@ properties:
           cpu:
             type: "string"
             description: "CPU limit"
-            default: "200m"
+            default: "500m"
           memory:
             type: "string"
             description: "Memory limit"
