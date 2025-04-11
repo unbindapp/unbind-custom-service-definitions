@@ -15,7 +15,7 @@ metadata:
     {{- end }}
 spec:
   teamId: {{ .TeamID }}
-  dockerImage: {{ .Parameters.dockerImage | default "unbindapp/spilo:17" }}
+  dockerImage: {{ if .Parameters.dockerImage }}{{ .Parameters.dockerImage }}{{ else }}{{ printf "unbindapp/spilo:%s-latest" (.Parameters.version | default "17") }}{{ end }}
   enableMasterLoadBalancer: {{ .Parameters.enableMasterLoadBalancer | default false }}
   postgresql:
     version: {{ .Parameters.version | default "17" | quote }}
