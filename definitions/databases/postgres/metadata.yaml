@@ -31,3 +31,9 @@ schema:
       enum: ["14", "15", "16", "17"]
     s3:
       $ref: "#/imports/s3Schema"
+    environment:
+      type: "object"
+      description: "Environment variables to be set in the PostgreSQL container"
+      additionalProperties:
+        type: "string"
+      default: {}

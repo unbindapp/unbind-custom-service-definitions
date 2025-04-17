@@ -2,7 +2,7 @@ apiVersion: acid.zalan.do/v1
 kind: postgresql
 metadata:
   name: {{ .Name }}
-  namespace: {{ .Namespace }} 
+  namespace: {{ .Namespace }}
   labels:
     # Zalando labels
     team: {{ .TeamID }}
@@ -24,18 +24,18 @@ spec:
     - 0.0.0.0/0
   patroni:
     pg_hba:
-    # Keep for pam authentication
-    - "hostssl all +pamrole all pam"
-    # Force SSL for external
-    - "hostssl all all 0.0.0.0/0 md5"
-    # Allow non‑SSL md5 inside the pod network (k3s)
-    - "host    all all 10.42.0.0/16 md5"
-    # Allow non-ssl md5 inside the pod network (others like microk8s)
-    - "host    all all 10.1.0.0/16 md5"
-    # Allow non-ssl md5 inside the pod network (others common k8s distributions)
-    - "host    all all 10.0.0.0/8 md5"
-    # Local loopback
-    - "host    all all 127.0.0.1/32 trust"
+      # Keep for pam authentication
+      - "hostssl all +pamrole all pam"
+      # Force SSL for external
+      - "hostssl all all 0.0.0.0/0 md5"
+      # Allow non‑SSL md5 inside the pod network (k3s)
+      - "host all all 10.42.0.0/16 md5"
+      # Allow non-ssl md5 inside the pod network (others like microk8s)
+      - "host all all 10.1.0.0/16 md5"
+      # Allow non-ssl md5 inside the pod network (others common k8s distributions)
+      - "host all all 10.0.0.0/8 md5"
+      # Local loopback
+      - "host all all 127.0.0.1/32 trust"
   volume:
     size: {{ .Parameters.common.storage | default "1Gi" }}
   resources:
@@ -48,7 +48,7 @@ spec:
   env:
     - name: ALLOW_NOSSL
       value: "true"
-  {{- if .Parameters.s3.enabled }}
+    {{- if .Parameters.s3.enabled }}
     - name: AWS_ACCESS_KEY_ID
       valueFrom:
         secretKeyRef:
@@ -68,7 +68,7 @@ spec:
     - name: BACKUP_NUM_TO_RETAIN
       value: {{ .Parameters.s3.backupRetention | default 5 | quote }}
     - name: BACKUP_SCHEDULE
-      value: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" }}
+      value: {{ .Parameters.s3.backupSchedule | default "5 5 * **" }}
     - name: CLONE_AWS_ACCESS_KEY_ID
       valueFrom:
         secretKeyRef:
@@ -105,4 +105,10 @@ spec:
       value: {{ .Parameters.s3.bucket }}
     - name: WALG_DISABLE_S3_SSE
       value: "true"
-  {{- end }}
+    {{- end }}
+    {{- if .Parameters.environment }}
+    {{- range $key, $value := .Parameters.environment }}
+    - name: {{ $key }}
+      value: {{ $value | quote }}
+    {{- end }}
+    {{- end }}
