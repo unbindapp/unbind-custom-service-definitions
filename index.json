@@ -3,7 +3,8 @@
     {
       "name": "databases",
       "templates": [
-        "postgres"
+        "postgres",
+        "redis"
       ]
     }
   ]
