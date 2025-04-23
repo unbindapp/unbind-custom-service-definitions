@@ -25,75 +25,75 @@ auth:
   existingSecretPasswordKey: {{ .Parameters.secretKey | quote }}
 
 {{- if gt $requestedReplicas 1 }}
-  # --- Replication Mode ---
-  # Triggered if .Parameters.common.replicas >= 2
-  # Deploys 1 Master + (N-1) Replicas
+# --- Replication Mode ---
+# Triggered if .Parameters.common.replicas >= 2
+# Deploys 1 Master + (N-1) Replicas
 
-  architecture: replication
+architecture: replication
 
-  # Master configuration (always 1 in this replication mode)
-  master:
-    count: 1
-    persistence:
-      enabled: true
-      size: {{ $.Parameters.common.storage | default "1Gi" }}
-    # Disable resource presets to use specific values below
-    resourcesPreset: "none"
-    # Map resource requests/limits from common parameters
-    resources:
-      requests:
-        cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
-        memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
-      limits:
-        cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
-        memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
+# Master configuration (always 1 in this replication mode)
+master:
+  count: 1
+  persistence:
+    enabled: true
+    size: {{ $.Parameters.common.storage | default "1Gi" }}
+  # Disable resource presets to use specific values below
+  resourcesPreset: "none"
+  # Map resource requests/limits from common parameters
+  resources:
+    requests:
+      cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
+      memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
+    limits:
+      cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
+      memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
 
-  # Replica configuration (N-1 replicas)
-  replica:
-    replicaCount: {{ sub $requestedReplicas 1 }}
-    persistence:
-      enabled: true
-      size: {{ $.Parameters.common.storage | default "1Gi" }}
-    # Disable resource presets to use specific values below
-    resourcesPreset: "none"
-    resources:
-      requests:
-        cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
-        memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
-      limits:
-        cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
-        memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
+# Replica configuration (N-1 replicas)
+replica:
+  replicaCount: {{ sub $requestedReplicas 1 }}
+  persistence:
+    enabled: true
+    size: {{ $.Parameters.common.storage | default "1Gi" }}
+  # Disable resource presets to use specific values below
+  resourcesPreset: "none"
+  resources:
+    requests:
+      cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
+      memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
+    limits:
+      cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
+      memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
 
 {{- else }}
-  # --- Standalone Mode ---
-  # Triggered if .Parameters.common.replicas = 1 (or omitted, as default is 1)
-  # Deploys 1 Master, 0 Replicas
+# --- Standalone Mode ---
+# Triggered if .Parameters.common.replicas = 1 (or omitted, as default is 1)
+# Deploys 1 Master, 0 Replicas
 
-  architecture: standalone
+architecture: standalone
 
-  # Master configuration (the only node)
-  master:
-    count: 1
-    persistence:
-      # Enable persistence for the single master node
-      enabled: true
-      # Map storage size from common parameters
-      size: {{ $.Parameters.common.storage | default "1Gi" }}
-    # Disable resource presets to use specific values below
-    resourcesPreset: "none"
-    # Map resource requests/limits from common parameters
-    resources:
-      requests:
-        cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
-        memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
-      limits:
-        cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
-        memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
+# Master configuration (the only node)
+master:
+  count: 1
+  persistence:
+    # Enable persistence for the single master node
+    enabled: true
+    # Map storage size from common parameters
+    size: {{ $.Parameters.common.storage | default "1Gi" }}
+  # Disable resource presets to use specific values below
+  resourcesPreset: "none"
+  # Map resource requests/limits from common parameters
+  resources:
+    requests:
+      cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
+      memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
+    limits:
+      cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
+      memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
 
-  # Replica configuration (disabled for standalone)
-  replica:
-    replicaCount: 0 
-    persistence:
-      enabled: false
+# Replica configuration (disabled for standalone)
+replica:
+  replicaCount: 0 
+  persistence:
+    enabled: false
 
 {{- end }}
