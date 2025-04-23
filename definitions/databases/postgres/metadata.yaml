@@ -16,10 +16,6 @@ schema:
       $ref: "#/imports/base"
     labels:
       $ref: "#/imports/labelsSchema"
-    enableMasterLoadBalancer:
-      type: "boolean"
-      description: "Enable load balancer for master instance (expose external)"
-      default: false
     dockerImage:
       type: "string"
       description: "Spilo image version"

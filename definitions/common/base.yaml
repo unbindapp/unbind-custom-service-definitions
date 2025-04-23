@@ -1,6 +1,10 @@
 type: "object"
 description: "Common base configuration for databases"
 properties:
+  namespace:
+    type: "string"
+    description: "Namespace for the database deployment"
+    required: true
   replicas:
     type: "integer"
     description: "Number of replicas"
@@ -11,6 +15,10 @@ properties:
     type: "string"
     description: "Storage size"
     default: "1Gi"
+  exposeExternal:
+    type: "boolean"
+    description: "Expose external service"
+    default: false
   resources:
     type: "object"
     description: "Resource requirements"
