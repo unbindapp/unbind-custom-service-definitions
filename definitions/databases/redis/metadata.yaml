@@ -2,9 +2,10 @@ name: "Redis"
 description: "Standard Redis installation using bitnami helm chart."
 type: "helm"
 version: "1.0.0"
+dbVersion: "7.4.3"
 chart:
   name: "redis"
-  version: "20.13.0"
+  version: "20.13.2"
   repository: "oci://registry-1.docker.io/bitnamicharts"
   repositoryName: "bitnami"
 port: 6379
