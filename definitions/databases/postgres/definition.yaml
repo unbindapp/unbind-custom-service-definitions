@@ -13,6 +13,7 @@ metadata:
     {{- range $key, $value := .Parameters.labels }}
     {{ $key }}: {{ $value | quote }}
     {{- end }}
+
 spec:
   teamId: {{ .TeamID }}
   dockerImage: {{ if .Parameters.dockerImage }}{{ .Parameters.dockerImage }}{{ else }}{{ printf "unbindapp/spilo:%s-latest" (.Parameters.version | default "17") }}{{ end }}
@@ -22,90 +23,111 @@ spec:
   numberOfInstances: {{ .Parameters.common.replicas | default 1 }}
   allowedSourceRanges:
     - 0.0.0.0/0
+
   patroni:
     pg_hba:
-      # Keep for pam authentication
-      - "hostssl all +pamrole all pam"
-      # Force SSL for external
-      - "hostssl all all 0.0.0.0/0 md5"
-      # Allow non‑SSL md5 inside the pod network (k3s)
-      - "host all all 10.42.0.0/16 md5"
-      # Allow non-ssl md5 inside the pod network (others like microk8s)
-      - "host all all 10.1.0.0/16 md5"
-      # Allow non-ssl md5 inside the pod network (others common k8s distributions)
-      - "host all all 10.0.0.0/8 md5"
-      # Local loopback
-      - "host all all 127.0.0.1/32 trust"
+      - "hostssl all +pamrole all pam"           # keep for pam auth
+      - "hostssl all all 0.0.0.0/0 md5"          # force SSL for external
+      - "host all all 10.42.0.0/16 md5"          # non-SSL inside k3s pod net
+      - "host all all 10.1.0.0/16 md5"           # non-SSL inside microk8s
+      - "host all all 10.0.0.0/8 md5"            # non-SSL generic k8s
+      - "host all all 127.0.0.1/32 trust"        # local loopback
+
   volume:
     size: {{ .Parameters.common.storage | default "1Gi" }}
+
   resources:
     requests:
-      cpu: {{ .Parameters.common.resources.requests.cpu | default "100m" }}
+      cpu:    {{ .Parameters.common.resources.requests.cpu    | default "100m" }}
       memory: {{ .Parameters.common.resources.requests.memory | default "128Mi" }}
     limits:
-      cpu: {{ .Parameters.common.resources.limits.cpu | default "500m" }}
+      cpu:    {{ .Parameters.common.resources.limits.cpu    | default "500m" }}
       memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
+
+  {{- if .Parameters.restore.enabled }}
+  clone:
+    # use latest backup unless you supply your own timestamp
+    timestamp: "2050-08-28T18:30:00+00:00"
+    cluster:   {{ .Parameters.restore.cluster }}
+  {{- end }}
+
   env:
+    # always present
     - name: ALLOW_NOSSL
       value: "true"
+
+    # common WAL-G toggles – only when backup *or* restore is enabled
+    {{- if or .Parameters.s3.enabled .Parameters.restore.enabled }}
+    - name: USE_WALG_BACKUP
+      value: "true"
+    - name: USE_WALG_RESTORE
+      value: "true"
+    - name: WALG_DISABLE_S3_SSE
+      value: "true"
+    {{- end }}
+
+    # backup-only block
     {{- if .Parameters.s3.enabled }}
+    - name: WAL_BUCKET_SCOPE_PREFIX
+      value: {{ .Parameters.s3.backupPrefix | default "" | quote }}
+    - name: WAL_S3_BUCKET
+      value: {{ .Parameters.s3.bucket }}
+
     - name: AWS_ACCESS_KEY_ID
       valueFrom:
         secretKeyRef:
-          name: {{ .Name }}-s3-credentials
-          key: accessKey
+          name: {{ .Parameters.s3.secretName }}
+          key:  {{ .Parameters.s3.accessKey }}
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Parameters.s3.secretName }}
+          key:  {{ .Parameters.s3.secretKey }}
     - name: AWS_ENDPOINT
       value: {{ .Parameters.s3.endpoint }}
     - name: AWS_REGION
       value: {{ .Parameters.s3.region }}
     - name: AWS_S3_FORCE_PATH_STYLE
-      value: {{ .Parameters.s3.forcePathStyle | quote }}
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Name }}-s3-credentials
-          key: secretKey
+      value: "true"
+
     - name: BACKUP_NUM_TO_RETAIN
-      value: {{ .Parameters.s3.backupRetention | default 5 | quote }}
+      value: {{ .Parameters.s3.backupRetention | default 2 | quote }}
     - name: BACKUP_SCHEDULE
-      value: {{ .Parameters.s3.backupSchedule | default "5 5 * **" }}
+      value: {{ .Parameters.s3.backupSchedule  | default "5 5 * * *" }}
+    {{- end }}
+
+    # restore-only block
+    {{- if .Parameters.restore.enabled }}
     - name: CLONE_AWS_ACCESS_KEY_ID
       valueFrom:
         secretKeyRef:
-          name: {{ .Name }}-s3-credentials
-          key: accessKey
-    - name: CLONE_AWS_ENDPOINT
-      value: {{ .Parameters.s3.endpoint }}
-    - name: CLONE_AWS_REGION
-      value: {{ .Parameters.s3.region }}
-    - name: CLONE_AWS_S3_FORCE_PATH_STYLE
-      value: {{ .Parameters.s3.forcePathStyle | quote }}
+          name: {{ .Parameters.restore.secretName }}
+          key:  {{ .Parameters.restore.accessKey }}
     - name: CLONE_AWS_SECRET_ACCESS_KEY
       valueFrom:
         secretKeyRef:
-          name: {{ .Name }}-s3-credentials
-          key: secretKey
+          name: {{ .Parameters.restore.secretName }}
+          key:  {{ .Parameters.restore.secretKey }}
+    - name: CLONE_AWS_ENDPOINT
+      value: {{ .Parameters.restore.endpoint }}
+    - name: CLONE_AWS_REGION
+      value: {{ .Parameters.restore.region }}
+    - name: CLONE_AWS_S3_FORCE_PATH_STYLE
+      value: "true"
+
     - name: CLONE_METHOD
       value: "CLONE_WITH_WALE"
     - name: CLONE_USE_WALG_RESTORE
       value: "true"
     - name: CLONE_WAL_BUCKET_SCOPE_PREFIX
-      value: ""
+      value: {{ .Parameters.restore.backupPrefix | default "" | quote }}
     - name: CLONE_WAL_S3_BUCKET
-      value: {{ .Parameters.s3.bucket }}
-    - name: USE_WALG_BACKUP
-      value: "true"
-    - name: USE_WALG_RESTORE
-      value: "true"
-    - name: WAL_BUCKET_SCOPE_PREFIX
-      value: ""
-    - name: WAL_BUCKET_SCOPE_SUFFIX
-      value: ""
-    - name: WAL_S3_BUCKET
-      value: {{ .Parameters.s3.bucket }}
-    - name: WALG_DISABLE_S3_SSE
+      value: {{ .Parameters.restore.bucket | default .Parameters.s3.bucket }}
+    - name: CLONE_WALG_DISABLE_S3_SSE
       value: "true"
     {{- end }}
+
+    # user-supplied extras
     {{- if .Parameters.environment }}
     {{- range $key, $value := .Parameters.environment }}
     - name: {{ $key }}

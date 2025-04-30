@@ -8,6 +8,8 @@ imports:
     as: base
   - path: "../../common/s3-schema.yaml"
     as: s3Schema
+  - path: "../../common/restore-schema.yaml"
+    as: restoreSchema
   - path: "../../common/labels.yaml"
     as: labelsSchema
 schema:
@@ -27,6 +29,8 @@ schema:
       enum: ["14", "15", "16", "17"]
     s3:
       $ref: "#/imports/s3Schema"
+    restore:
+      $ref: "#/imports/restoreSchema"
     environment:
       type: "object"
       description: "Environment variables to be set in the PostgreSQL container"
