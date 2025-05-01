@@ -26,6 +26,7 @@ spec:
 
   patroni:
     pg_hba:
+      - "local all all trust"
       - "hostssl all +pamrole all pam"           # keep for pam auth
       - "hostssl all all 0.0.0.0/0 md5"          # force SSL for external
       - "host all all 10.42.0.0/16 md5"          # non-SSL inside k3s pod net
