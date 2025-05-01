@@ -8,7 +8,7 @@ imports:
     as: base
   - path: "../../common/s3-schema.yaml"
     as: s3Schema
-  - path: "../../common/restore-schema.yaml"
+  - path: "../../common/s3-restore-schema.yaml"
     as: restoreSchema
   - path: "../../common/labels.yaml"
     as: labelsSchema
