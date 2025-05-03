@@ -1,0 +1,74 @@
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  name: {{ .Name }}
+  namespace: {{ .Namespace }}
+  labels:
+    # Oracle MySQL Operator labels
+    mysql.oracle.com/cluster: {{ .Name }}
+    # usd-specific labels
+    unbind/usd-type: {{ .Definition.Type }}
+    unbind/usd-version: {{ .Definition.Version }}
+    unbind/usd-category: databases
+    {{- range $key, $value := .Parameters.labels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+
+spec:
+  secretName: {{ .Parameters.secretName }}
+  tlsUseSelfSigned: true
+  version: {{ .Parameters.version | default "8.0" | quote }}
+  instances: {{ .Parameters.common.replicas | default 1 }}
+  router:
+    instances: 1
+    tlsUseSelfSigned: true
+  datadirVolumeClaimTemplate:
+    accessModes: ["ReadWriteOnce"]
+    resources:
+      requests:
+        storage: {{ .Parameters.common.storage | default "1Gi" }}
+  podSpec:
+    resources:
+      requests:
+        cpu: {{ .Parameters.common.resources.requests.cpu | default "10m" }}
+        memory: {{ .Parameters.common.resources.requests.memory | default "10Mi" }}
+      limits:
+        cpu: {{ .Parameters.common.resources.limits.cpu | default "500m" }}
+        memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
+
+  {{- if .Parameters.s3.enabled }}
+  backupProfiles:
+    - name: s3-backup
+      dumpInstance:
+        storage:
+          s3:
+            bucketName: {{ .Parameters.s3.bucket }}
+            prefix:     {{ .Parameters.s3.backupPrefix | default "" }}
+            endpoint:   {{ .Parameters.s3.endpoint }}
+            config:     {{ .Parameters.s3.secretName }} 
+
+  backupSchedules:
+    - name: daily-s3
+      schedule: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" | quote }}
+      backupProfileName: s3-backup
+      deleteBackupData: false    
+  {{- end }}
+
+  {{- if .Parameters.restore.enabled }}
+  initDB:
+    dump:
+      name: {{ .Parameters.restore.cluster }}
+      storage:
+        s3:
+          bucketName: {{ .Parameters.restore.bucket | default .Parameters.s3.bucket }}
+          prefix:     {{ .Parameters.restore.backupPrefix | default "" }}
+          endpoint:   {{ .Parameters.restore.endpoint }}
+          config:     {{ .Parameters.restore.secretName }}
+  {{- end }}
+
+  {{- if .Parameters.environment }}
+  mycnf: |
+    {{- range $key, $value := .Parameters.environment }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+  {{- end }} 

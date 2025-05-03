@@ -4,7 +4,8 @@
       "name": "databases",
       "templates": [
         "postgres",
-        "redis"
+        "redis",
+        "mysql"
       ]
     }
   ]
