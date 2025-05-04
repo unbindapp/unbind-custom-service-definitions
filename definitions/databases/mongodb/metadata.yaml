@@ -1,0 +1,35 @@
+name: "MongoDB Database"
+description: "Standard MongoDB database using MongoDB Community Operator"
+type: "mongodb-operator"
+version: "1.0.0"
+port: 27017
+imports:
+  - path: "../../common/base.yaml"
+    as: base
+  - path: "../../common/s3-schema.yaml"
+    as: s3Schema
+  - path: "../../common/s3-restore-schema.yaml"
+    as: restoreSchema
+  - path: "../../common/labels.yaml"
+    as: labelsSchema
+schema:
+  properties:
+    common:
+      $ref: "#/imports/base"
+    labels:
+      $ref: "#/imports/labelsSchema"
+    version:
+      type: "string"
+      description: "MongoDB version"
+      default: "7.0"
+      enum: ["6.0", "7.0"]
+    s3:
+      $ref: "#/imports/s3Schema"
+    restore:
+      $ref: "#/imports/restoreSchema"
+    environment:
+      type: "object"
+      description: "Environment variables to be set in the MongoDB container"
+      additionalProperties:
+        type: "string"
+      default: {} 
