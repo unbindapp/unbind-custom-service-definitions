@@ -44,6 +44,6 @@ properties:
           memory:
             type: "string"
             description: "Memory limit"
-            default: "512Mi"
+            default: "1024Mi"
 required:
   - replicas
