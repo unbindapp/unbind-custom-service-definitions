@@ -35,6 +35,9 @@ properties:
   cluster:
     type: "string"
     description: "Name of the cluster to restore from"
+  restorePoint:
+    type: "string"
+    description: "Point-in-time (RFC3339) to restore to. Leave blank to restore the latest backup."
 required:
   - enabled
   - bucket

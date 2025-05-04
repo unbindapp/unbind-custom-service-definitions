@@ -1,74 +1,126 @@
-apiVersion: mysql.oracle.com/v2
-kind: InnoDBCluster
+{{- /* convenience helpers */ -}}
+{{- $common := .Parameters.common -}}
+{{- $s3     := .Parameters.s3 -}}
+{{- $restore:= .Parameters.restore -}}
+{{- $labels := .Parameters.labels | default dict -}}
+apiVersion: moco.cybozu.com/v1beta2
+kind: MySQLCluster
 metadata:
   name: {{ .Name }}
   namespace: {{ .Namespace }}
   labels:
-    # Oracle MySQL Operator labels
-    mysql.oracle.com/cluster: {{ .Name }}
+    # operator labels
+    app.kubernetes.io/name:  mysql
+    app.kubernetes.io/instance: {{ .Name }}
     # usd-specific labels
-    unbind/usd-type: {{ .Definition.Type }}
-    unbind/usd-version: {{ .Definition.Version }}
+    unbind/usd-type: {{ .Definition.Type | quote }}
+    unbind/usd-version: {{ .Definition.Version | quote }}
     unbind/usd-category: databases
-    {{- range $key, $value := .Parameters.labels }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
+{{- range $k, $v := $labels }}
+    {{ $k }}: {{ $v | quote }}
+{{- end }}
 
 spec:
-  secretName: {{ .Parameters.secretName }}
-  tlsUseSelfSigned: true
-  version: {{ .Parameters.version | default "8.0" | quote }}
-  instances: {{ .Parameters.common.replicas | default 1 }}
-  router:
-    instances: 1
-    tlsUseSelfSigned: true
-  datadirVolumeClaimTemplate:
-    accessModes: ["ReadWriteOnce"]
-    resources:
-      requests:
-        storage: {{ .Parameters.common.storage | default "1Gi" }}
-  podSpec:
-    resources:
-      requests:
-        cpu: {{ .Parameters.common.resources.requests.cpu | default "10m" }}
-        memory: {{ .Parameters.common.resources.requests.memory | default "10Mi" }}
-      limits:
-        cpu: {{ .Parameters.common.resources.limits.cpu | default "500m" }}
-        memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
+  replicas: {{ $common.replicas | default 1 }}
 
-  {{- if .Parameters.s3.enabled }}
-  backupProfiles:
-    - name: s3-backup
-      dumpInstance:
-        storage:
-          s3:
-            bucketName: {{ .Parameters.s3.bucket }}
-            prefix:     {{ .Parameters.s3.backupPrefix | default "" }}
-            endpoint:   {{ .Parameters.s3.endpoint }}
-            config:     {{ .Parameters.s3.secretName }} 
+  podTemplate:
+    metadata:
+      labels:
+        # Propagate custom labels to pods
+{{- range $k, $v := $labels }}
+        {{ $k }}: {{ $v | quote }}
+{{- end }}
+    spec:
+      containers:
+        - name: mysqld
+          image: {{ printf "ghcr.io/cybozu-go/moco/mysql:%s" (.Parameters.version | default "8.4.4") | quote }}
+          resources:
+            requests:
+              cpu:    {{ $common.resources.requests.cpu    | default "10m"   | quote }}
+              memory: {{ $common.resources.requests.memory | default "10Mi"  | quote }}
+            limits:
+              cpu:    {{ $common.resources.limits.cpu      | default "500m"  | quote }}
+              memory: {{ $common.resources.limits.memory   | default "256Mi" | quote }}
+{{- if .Parameters.environment }}
+          env:
+{{- range $k, $v := .Parameters.environment }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+{{- end }}
+{{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ $common.storage | default "1Gi" | quote }}
+{{- if $s3.enabled }}
+  backupPolicyName: {{ .Name }}-backup
+{{- end }}
 
-  backupSchedules:
-    - name: daily-s3
-      schedule: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" | quote }}
-      backupProfileName: s3-backup
-      deleteBackupData: false    
-  {{- end }}
+{{- if $restore.enabled }}
+  restore:
+    sourceName:      {{ $restore.cluster }}
+    sourceNamespace: {{ .Namespace }}
+    restorePoint: {{ $restore.restorePoint | default (timeFormat .RFC3339 now) | quote }}
+    jobConfig:
+      serviceAccountName: default
+      bucketConfig:
+        bucketName:   {{ $restore.bucket | default $s3.bucket | quote }}
+        endpointURL:  {{ $restore.endpoint | default $s3.endpoint | quote }}
+        region:       {{ $restore.region   | default $s3.region   | quote }}
+        usePathStyle: true
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ $restore.secretName }}
+              key:  {{ $restore.accessKey | default "access_key_id" }}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $restore.secretName }}
+              key:  {{ $restore.secretKey | default "secret_key" }}
+      workVolume:
+        emptyDir: {}
+{{- end }}
+---
+{{- if $s3.enabled }}
+apiVersion: moco.cybozu.com/v1beta2
+kind: BackupPolicy
+metadata:
+  name: {{ .Name }}-backup
+  namespace: {{ .Namespace }}
+  labels:
+    unbind/usd-type: {{ .Definition.Type | quote }}
+    unbind/usd-version: {{ .Definition.Version | quote }}
+    unbind/usd-category: databases
+{{- range $k, $v := $labels }}
+    {{ $k }}: {{ $v | quote }}
+{{- end }}
 
-  {{- if .Parameters.restore.enabled }}
-  initDB:
-    dump:
-      name: {{ .Parameters.restore.cluster }}
-      storage:
-        s3:
-          bucketName: {{ .Parameters.restore.bucket | default .Parameters.s3.bucket }}
-          prefix:     {{ .Parameters.restore.backupPrefix | default "" }}
-          endpoint:   {{ .Parameters.restore.endpoint }}
-          config:     {{ .Parameters.restore.secretName }}
-  {{- end }}
-
-  {{- if .Parameters.environment }}
-  mycnf: |
-    {{- range $key, $value := .Parameters.environment }}
-    {{ $key }}={{ $value }}
-    {{- end }}
-  {{- end }} 
+spec:
+  schedule: {{ $s3.backupSchedule | default "5 5 * * *" | quote }}
+  jobConfig:
+    serviceAccountName: default 
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: {{ $s3.secretName }}
+            key:  {{ $s3.accessKey | default "access_key_id" }}
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: {{ $s3.secretName }}
+            key:  {{ $s3.secretKey | default "secret_key" }}
+    bucketConfig:
+      bucketName:  {{ $s3.bucket | quote }}
+      endpointURL: {{ $s3.endpoint | quote }}
+      region:      {{ $s3.region   | quote }}
+      usePathStyle: true
+    workVolume:
+      emptyDir: {}
+{{- end }}
