@@ -148,3 +148,120 @@ spec:
     workVolume:
       emptyDir: {}
 {{- end }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Name }}-createdb-moco
+  namespace: {{ .Namespace }}
+  labels:
+    unbind/usd-type: {{ .Definition.Type | quote }}
+    unbind/usd-version: {{ .Definition.Version | quote }}
+    unbind/usd-category: databases
+{{- range $k, $v := $labels }}
+    {{ $k }}: {{ $v | quote }}
+{{- end }}
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 86400  # Cleanup after 24 hours
+  completions: 1                  # Only need to complete once
+  parallelism: 1                  # Only run one pod at a time
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: mysql-client
+        image: mysql:8.4 
+        env:
+        - name: MYSQL_PWD
+          valueFrom:
+            secretKeyRef:
+              name: moco-{{ .Name }}
+              key: WRITABLE_PASSWORD
+        # More robust command with comprehensive health checks
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            
+            # Wait for service to be ready
+            echo "Waiting for MySQL service to be available..."
+            timeout=300  # 5 minutes timeout
+            interval=5
+            elapsed=0
+            
+            while [ $elapsed -lt $timeout ]; do
+              if nc -z moco-{{ .Name }}-primary.{{ .Namespace }}.svc 3306; then
+                echo "MySQL service is available!"
+                break
+              fi
+              echo "Waiting for MySQL service... ($elapsed/$timeout seconds)"
+              sleep $interval
+              elapsed=$((elapsed + interval))
+            done
+            
+            if [ $elapsed -ge $timeout ]; then
+              echo "Timeout waiting for MySQL service"
+              exit 1
+            fi
+            
+            # Wait for MySQL to be ready to accept connections
+            echo "Waiting for MySQL to be ready..."
+            retries=30
+            count=0
+            
+            while [ $count -lt $retries ]; do
+              if mysqladmin -h moco-{{ .Name }}-primary.{{ .Namespace }}.svc -u moco-writable ping 2>/dev/null; then
+                echo "MySQL is ready!"
+                break
+              fi
+              count=$((count+1))
+              echo "MySQL is not ready yet, retrying... ($count/$retries)"
+              sleep 5
+            done
+            
+            if [ $count -eq $retries ]; then
+              echo "Timeout waiting for MySQL to be ready"
+              exit 1
+            fi
+            
+            # Check if database already exists
+            if mysql -h moco-{{ .Name }}-primary.{{ .Namespace }}.svc -u moco-writable -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'moco';" | grep -q moco; then
+              echo "Database 'moco' already exists."
+              exit 0
+            fi
+            
+            # Create the database
+            echo "Creating database 'moco'..."
+            mysql -h moco-{{ .Name }}-primary.{{ .Namespace }}.svc -u moco-writable -e "CREATE DATABASE moco CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            
+            # Verify database creation
+            if mysql -h moco-{{ .Name }}-primary.{{ .Namespace }}.svc -u moco-writable -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'moco';" | grep -q moco; then
+              echo "Database 'moco' created successfully!"
+              exit 0
+            else
+              echo "Failed to verify database creation"
+              exit 1
+            fi
+        # Resource limits for the mysql client
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "250m"
+          requests:
+            memory: "32Mi"
+            cpu: "100m"
+        # Readiness probe to ensure script is running properly
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "pgrep mysql || pgrep nc || pgrep mysqladmin"
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      # Ensure pod uses appropriate service account
+      serviceAccountName: default
