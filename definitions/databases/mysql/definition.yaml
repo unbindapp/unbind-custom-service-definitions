@@ -17,7 +17,14 @@ metadata:
 {{- end }}
 data:
   innodb-dedicated-server: "OFF"
-  innodb_redo_log_capacity: "134217728" # 128 * 1024 * 1024 Bytes
+  innodb_redo_log_capacity: "134217728"
+
+  innodb_buffer_pool_size: "134217728"
+  key_buffer_size: "8388608"
+  max_connections: "50"
+  performance_schema: "OFF"
+  performance_schema_instrument: "'%=OFF'"
+  innodb_stats_persistent: "0"
 ---
 apiVersion: moco.cybozu.com/v1beta2
 kind: MySQLCluster
