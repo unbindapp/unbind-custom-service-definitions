@@ -3,6 +3,22 @@
 {{- $s3     := .Parameters.s3 -}}
 {{- $restore:= .Parameters.restore -}}
 {{- $labels := .Parameters.labels | default dict -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Name }}-custom-mycnf
+  namespace: {{ .Namespace }}
+  labels:
+    unbind/usd-type: {{ .Definition.Type | quote }}
+    unbind/usd-version: {{ .Definition.Version | quote }}
+    unbind/usd-category: databases
+{{- range $k, $v := $labels }}
+    {{ $k }}: {{ $v | quote }}
+{{- end }}
+data:
+  innodb-dedicated-server: "OFF"
+  innodb_redo_log_capacity: "134217728" # 128 * 1024 * 1024 Bytes
+---
 apiVersion: moco.cybozu.com/v1beta2
 kind: MySQLCluster
 metadata:
@@ -22,6 +38,7 @@ metadata:
 
 spec:
   replicas: {{ $common.replicas | default 1 }}
+  mysqlConfigMapName: {{ .Name }}-custom-mycnf
 
   podTemplate:
     metadata:
