@@ -40,7 +40,7 @@ spec:
               memory: {{ $common.resources.requests.memory | default "10Mi"  | quote }}
             limits:
               cpu:    {{ $common.resources.limits.cpu      | default "500m"  | quote }}
-              memory: {{ $common.resources.limits.memory   | default "256Mi" | quote }}
+              memory: {{ $common.resources.limits.memory   | default "512Mi" | quote }}
 {{- if .Parameters.environment }}
           env:
 {{- range $k, $v := .Parameters.environment }}
