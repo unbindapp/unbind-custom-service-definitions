@@ -66,7 +66,6 @@ spec:
     persistence:
       single:
         storage: {{ .Parameters.common.storage | default "1Gi" }}
-
 {{- if .Parameters.common.exposeExternal }}
 ---
 apiVersion: v1
@@ -93,7 +92,6 @@ spec:
     app.kubernetes.io/name: mongodb
     app.kubernetes.io/instance: {{ .Name }}
 {{- end }}
-
 {{- if .Parameters.s3.enabled }}
 ---
 apiVersion: batch/v1
@@ -146,7 +144,6 @@ spec:
             emptyDir: {}
           restartPolicy: OnFailure
 {{- end }}
-
 {{- if .Parameters.restore.enabled }}
 ---
 apiVersion: batch/v1
