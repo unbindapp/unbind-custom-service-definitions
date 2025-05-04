@@ -192,7 +192,7 @@ spec:
             elapsed=0
             
             while [ $elapsed -lt $timeout ]; do
-              if nc -z moco-{{ .Name }}-primary.{{ .Namespace }}.svc 3306; then
+              if mysqladmin -h moco-{{ .Name }}-primary.{{ .Namespace }}.svc -u moco-writable ping 2>/dev/null; then
                 echo "MySQL service is available!"
                 break
               fi
@@ -258,7 +258,7 @@ spec:
             command:
             - /bin/sh
             - -c
-            - "pgrep mysql || pgrep nc || pgrep mysqladmin"
+            - "pgrep mysql || pgrep mysqladmin"
           initialDelaySeconds: 5
           periodSeconds: 10
           timeoutSeconds: 5
