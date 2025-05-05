@@ -1,3 +1,21 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Name }}-password-generator
+  namespace: {{ .Namespace }}
+  labels:
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/instance: {{ .Name }}
+    unbind/usd-type: {{ .Definition.Type | quote }}
+    unbind/usd-version: {{ .Definition.Version | quote }}
+    unbind/usd-category: databases
+    {{- range $key, $value := .Parameters.labels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+type: Opaque
+stringData:
+  password: {{ generatePassword 32 }}
+---
 apiVersion: mongodbcommunity.mongodb.com/v1
 kind: MongoDBCommunity
 metadata:
@@ -28,6 +46,8 @@ spec:
   users:
     - name: admin
       db: admin
+      passwordSecretRef:
+        name: {{ .Name }}-password-generator
       roles:
         - name: clusterAdmin
           db: admin
