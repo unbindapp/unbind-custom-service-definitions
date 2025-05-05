@@ -21,8 +21,11 @@ schema:
     version:
       type: "string"
       description: "MongoDB version"
-      default: "7.0"
-      enum: ["6.0", "7.0"]
+      default: "8.0"
+      enum: ["6.0", "7.0", "8.0"]
+    existingSecretName:
+      type: "string"
+      description: "Name of the existing secret containing MongoDB credentials"
     s3:
       $ref: "#/imports/s3Schema"
     restore:
