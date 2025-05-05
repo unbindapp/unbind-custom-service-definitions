@@ -28,14 +28,11 @@ spec:
   users:
     - name: admin
       db: admin
-      passwordSecretRef:
-        name: admin-password
       roles:
         - name: clusterAdmin
           db: admin
         - name: userAdminAnyDatabase
           db: admin
-      scramCredentialsSecretName: my-scram
 
   statefulSet:
     spec:
