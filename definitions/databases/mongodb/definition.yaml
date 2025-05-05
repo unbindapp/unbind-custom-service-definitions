@@ -37,6 +37,7 @@ spec:
   members: {{ .Parameters.common.replicas | default 1 }}
   type: ReplicaSet
   version: {{ .Parameters.version | default "7.0" | quote }}
+  featureCompatibilityVersion: {{ .Parameters.version | default "7.0" | quote }}
 
   security:
     authentication:
