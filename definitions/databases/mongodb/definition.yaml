@@ -17,17 +17,7 @@ replicaCount: {{ .Parameters.common.replicas | default 1 }}
 # Image version - NOTE: Ensure this maps to a valid Bitnami tag format (e.g., "7.0", "7.0.5-debian-11-r0").
 # The exact tag might need manual adjustment based on available Bitnami images for the desired MongoDB version.
 image:
-  tag: >-
-    {{- if eq (.Parameters.version | default "8.0") "8.0" -}}
-      "8.0.9-debian-12-r0"
-    {{- else if eq .Parameters.version "7.0" -}}
-      "7.0.15-debian-12-r2"
-    {{- else if eq .Parameters.version "6.0" -}}
-      "6.0.13-debian-11-r21"
-    {{- else -}}
-      {{/* Default to latest 8.0 tag if version is unknown or unspecified */}}
-      "8.0.9-debian-12-r0"
-    {{- end -}}
+  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.9-debian-12-r0{{ else if eq .Parameters.version "7.0" }}7.0.15-debian-12-r2{{ else if eq .Parameters.version "6.0" }}6.0.13-debian-11-r21{{ else }}8.0.9-debian-12-r0{{ end }}
 
 # Authentication - Requires a pre-existing secret
 auth:
@@ -112,17 +102,7 @@ extraDeploy:
               containers:
               - name: mongodump-s3
                 # Use an appropriate mongo image version based on .Parameters.version
-                image: >-
-                  {{- $mongoVersion := .Parameters.version | default "8.0" -}}
-                  {{- if eq $mongoVersion "8.0" -}}
-                    mongo:8.0
-                  {{- else if eq $mongoVersion "7.0" -}}
-                    mongo:7.0
-                  {{- else if eq $mongoVersion "6.0" -}}
-                    mongo:6.0
-                  {{- else -}}
-                    mongo:8.0 # Default
-                  {{- end -}}
+                image: {{ if eq (.Parameters.version | default "8.0") "8.0" }}mongo:8.0{{ else if eq .Parameters.version "7.0" }}mongo:7.0{{ else if eq .Parameters.version "6.0" }}mongo:6.0{{ else }}mongo:8.0{{ end }}
                 # Combine mongodump, aws sync, and cleanup
                 # Assumes AWS CLI is available or added via another container/modified image
                 command:
@@ -201,17 +181,7 @@ extraDeploy:
         spec:
           containers:
           - name: mongorestore-s3
-            image: >-
-              {{- $mongoVersion := .Parameters.version | default "8.0" -}}
-              {{- if eq $mongoVersion "8.0" -}}
-                mongo:8.0
-              {{- else if eq $mongoVersion "7.0" -}}
-                mongo:7.0
-              {{- else if eq $mongoVersion "6.0" -}}
-                mongo:6.0
-              {{- else -}}
-                mongo:8.0 # Default
-              {{- end -}}
+            image: {{ if eq (.Parameters.version | default "8.0") "8.0" }}mongo:8.0{{ else if eq .Parameters.version "7.0" }}mongo:7.0{{ else if eq .Parameters.version "6.0" }}mongo:6.0{{ else }}mongo:8.0{{ end }}
             command:
             - /bin/sh
             - -c
