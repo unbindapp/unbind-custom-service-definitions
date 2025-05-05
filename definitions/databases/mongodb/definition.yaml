@@ -23,7 +23,7 @@ image:
 auth:
   enabled: true
   # Secret must contain keys 'mongodb-root-password' and 'mongodb-replica-set-key'
-  existingSecret: {{ .Parameters.existingSecretName | default (printf "%s-auth-secret" .Name) | quote }}
+  existingSecret: {{ .Parameters.existingSecretName | quote }}
 
 # Persistence configuration
 persistence:
