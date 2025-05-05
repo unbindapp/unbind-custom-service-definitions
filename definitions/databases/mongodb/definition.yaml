@@ -77,7 +77,11 @@ externalAccess:
 # Arbiter is enabled by default in the chart values, disable unless specifically needed/parameterized
 arbiter:
   enabled: true
-  resourcesPreset: nano   
+  resourcesPreset: nano
+  readinessProbe:
+    enabled: false
+  livenessProbe:
+    enabled: false
 
 # Disable metrics exporter unless explicitly configured via parameters (not currently supported)
 metrics:
