@@ -11,8 +11,7 @@ commonLabels:
   {{- end }}
 
 # Use ReplicaSet architecture
-architecture: replicaset
-replicaCount: {{ .Parameters.common.replicas | default 1 }}
+architecture: standalone
 
 global:
   security:
@@ -76,12 +75,7 @@ externalAccess:
 
 # Arbiter is enabled by default in the chart values, disable unless specifically needed/parameterized
 arbiter:
-  enabled: true
-  resourcesPreset: nano
-  readinessProbe:
-    enabled: false
-  livenessProbe:
-    enabled: false
+  enabled: false
 
 # Disable metrics exporter unless explicitly configured via parameters (not currently supported)
 metrics:
