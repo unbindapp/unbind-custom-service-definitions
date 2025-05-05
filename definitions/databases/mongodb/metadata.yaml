@@ -1,4 +1,4 @@
-name: "MongoDB Database"
+name: "MongoDB"
 description: "Standard MongoDB database using MongoDB Community Operator"
 type: "helm"
 chart:

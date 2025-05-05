@@ -1,4 +1,4 @@
-name: "PostgreSQL Database"
+name: "PostgreSQL"
 description: "Standard PostgreSQL database using zalando postgres-operator"
 type: "postgres-operator"
 version: "1.0.0"

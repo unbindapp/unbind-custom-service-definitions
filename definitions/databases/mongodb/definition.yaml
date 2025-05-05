@@ -17,7 +17,8 @@ replicaCount: {{ .Parameters.common.replicas | default 1 }}
 # Image version - NOTE: Ensure this maps to a valid Bitnami tag format (e.g., "7.0", "7.0.5-debian-11-r0").
 # The exact tag might need manual adjustment based on available Bitnami images for the desired MongoDB version.
 image:
-  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.9-debian-12-r0{{ else if eq .Parameters.version "7.0" }}7.0.15-debian-12-r2{{ else if eq .Parameters.version "6.0" }}6.0.13-debian-11-r21{{ else }}8.0.9-debian-12-r0{{ end }}
+  repository: unbindapp/bitnami-mongodb
+  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.9{{ else if eq .Parameters.version "7.0" }}7.0.20{{ else if eq .Parameters.version "6.0" }}6.0.13-debian-11-r21{{ else }}6.0.23{{ end }}
 
 # Authentication - Requires a pre-existing secret
 auth:
