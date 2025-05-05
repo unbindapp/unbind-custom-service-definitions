@@ -14,6 +14,10 @@ commonLabels:
 architecture: replicaset
 replicaCount: {{ .Parameters.common.replicas | default 1 }}
 
+global:
+  security:
+    allowInsecureImages: true
+
 # Image version - NOTE: Ensure this maps to a valid Bitnami tag format (e.g., "7.0", "7.0.5-debian-11-r0").
 # The exact tag might need manual adjustment based on available Bitnami images for the desired MongoDB version.
 image:
