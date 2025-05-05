@@ -32,8 +32,10 @@ spec:
       passwordSecretRef:
         name: admin-password
       roles:
-        - { name: clusterAdmin,           db: admin }
-        - { name: userAdminAnyDatabase,   db: admin }
+        - name: clusterAdmin
+          db: admin
+        - name: userAdminAnyDatabase
+          db: admin
       scramCredentialsSecretName: my-scram
 
   # --- Pod & storage overrides -----------------------------------------------
