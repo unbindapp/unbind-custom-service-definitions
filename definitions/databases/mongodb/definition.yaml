@@ -17,8 +17,7 @@ metadata:
 
 spec:
   members: {{ .Parameters.common.replicas | default 1 }}
-  # Automatically select Standalone vs ReplicaSet based on replica count
-  type: {{ if gt (.Parameters.common.replicas | default 1) 1 }}ReplicaSet{{ else }}Standalone{{ end }}
+  type: ReplicaSet
   version: {{ .Parameters.version | default "7.0" | quote }}
   
   security:
