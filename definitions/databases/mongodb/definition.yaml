@@ -71,4 +71,7 @@ spec:
 
   # --- Mongod runtime tweaks --------------------------------------------------
   additionalMongodConfig:
-    storage.wiredTiger.engineConfig.cacheSizeGB: 0.25
+    storage:
+      wiredTiger:
+        engineConfig:
+          cacheSizeGB: 0.25
