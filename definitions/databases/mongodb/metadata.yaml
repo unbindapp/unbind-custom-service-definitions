@@ -28,6 +28,10 @@ schema:
       description: "MongoDB version"
       default: "8.0"
       enum: ["6.0", "7.0", "8.0"]
+    exposeExternal:
+      type: "boolean"
+      description: "Expose external service"
+      default: false
     existingSecretName:
       type: "string"
       description: "Name of the existing secret containing MongoDB credentials"

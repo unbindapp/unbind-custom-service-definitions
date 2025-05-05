@@ -23,7 +23,7 @@ image:
 auth:
   enabled: true
   # Secret must contain keys 'mongodb-root-password' and 'mongodb-replica-set-key'
-  existingSecret: {{ .Parameters.existingSecretName | quote }}
+  existingSecret: {{ .Parameters.existingSecretName }}
 
 # Persistence configuration
 persistence:
@@ -130,7 +130,7 @@ extraDeploy:
                   valueFrom:
                     secretKeyRef:
                       # Use the same secret name as defined in auth.existingSecret
-                      name: {{ .Parameters.existingSecretName | default (printf "%s-auth-secret" .Name) }}
+                      name: {{ .Parameters.existingSecretName }}
                       key: mongodb-root-password
                 # Inject AWS Credentials from the S3 secret
                 - name: AWS_ACCESS_KEY_ID
@@ -209,7 +209,7 @@ extraDeploy:
               valueFrom:
                 secretKeyRef:
                   # Use the same secret name as defined in auth.existingSecret
-                  name: {{ .Parameters.existingSecretName | default (printf "%s-auth-secret" .Name) }}
+                  name: {{ .Parameters.existingSecretName }}
                   key: mongodb-root-password
             # Inject AWS Credentials from the Restore secret
             - name: AWS_ACCESS_KEY_ID
