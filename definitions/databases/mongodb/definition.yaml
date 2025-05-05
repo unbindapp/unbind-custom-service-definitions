@@ -25,8 +25,8 @@ image:
   tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.9{{ else if eq .Parameters.version "7.0" }}7.0.20{{ else if eq .Parameters.version "6.0" }}6.0.13-debian-11-r21{{ else }}6.0.23{{ end }}
 
 extraFlags:
-  - "--wiredTigerCacheSizeGB=0.12"   # 120 MiB cache (fits 512 Mi limit)
-  - "--maxConns=100"                 # prevent socket floods
+  - "--wiredTigerCacheSizeGB=0.25"
+  - "--maxConns=100"            
   - "--wiredTigerCollectionBlockCompressor=zstd"
 
 # Authentication - Requires a pre-existing secret
