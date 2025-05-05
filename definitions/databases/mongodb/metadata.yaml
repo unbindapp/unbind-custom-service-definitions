@@ -1,6 +1,11 @@
 name: "MongoDB Database"
 description: "Standard MongoDB database using MongoDB Community Operator"
-type: "mongodb-operator"
+type: "helm"
+chart:
+  name: "mongodb"
+  version: "16.5.5"
+  repository: "oci://registry-1.docker.io/bitnamicharts"
+  repositoryName: "mongodb"
 version: "1.0.0"
 port: 27017
 imports:
