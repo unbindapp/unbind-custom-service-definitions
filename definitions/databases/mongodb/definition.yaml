@@ -53,6 +53,7 @@ spec:
           db: admin
         - name: userAdminAnyDatabase
           db: admin
+      scramCredentialsSecretName: {{ .Name }}-scram-credentials
 
   statefulSet:
     spec:
