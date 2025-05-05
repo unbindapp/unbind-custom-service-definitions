@@ -1,220 +1,262 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Name }}-password-generator
-  namespace: {{ .Namespace }}
-  labels:
-    app.kubernetes.io/name: mongodb
-    app.kubernetes.io/instance: {{ .Name }}
-    unbind/usd-type: {{ .Definition.Type | quote }}
-    unbind/usd-version: {{ .Definition.Version | quote }}
-    unbind/usd-category: databases
-    {{- range $key, $value := .Parameters.labels }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
-type: Opaque
-stringData:
-  password: {{ generatePassword 32 }}
----
-apiVersion: mongodbcommunity.mongodb.com/v1
-kind: MongoDBCommunity
-metadata:
-  name: {{ .Name }}
-  namespace: {{ .Namespace }}
-  labels:
-    # Operator labels
-    app.kubernetes.io/name: mongodb
-    app.kubernetes.io/instance: {{ .Name }}
-    # usd-specific labels
-    unbind/usd-type: {{ .Definition.Type | quote }}
-    unbind/usd-version: {{ .Definition.Version | quote }}
-    unbind/usd-category: databases
-    {{- range $key, $value := .Parameters.labels }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
+# definitions/databases/mongodb/definition.yaml
+# Helm values for Bitnami MongoDB chart
 
-spec:
-  members: {{ .Parameters.common.replicas | default 1 }}
-  type: ReplicaSet
-  version: {{ .Parameters.version | default "7.0" | quote }}
-  featureCompatibilityVersion: {{ .Parameters.version | default "7.0" | quote }}
+# Apply common labels to all resources created by the chart
+commonLabels:
+  unbind/usd-type: {{ .Definition.Type | quote }}
+  unbind/usd-version: {{ .Definition.Version | quote }}
+  unbind/usd-category: databases
+  {{- range $key, $value := .Parameters.labels }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
 
-  security:
-    authentication:
-      modes: ["SCRAM"]
-      ignoreUnknownUsers: true
+# Use ReplicaSet architecture
+architecture: replicaset
+replicaCount: {{ .Parameters.common.replicas | default 1 }}
 
-  users:
-    - name: admin
-      db: admin
-      passwordSecretRef:
-        name: {{ .Name }}-password-generator
-      roles:
-        - name: clusterAdmin
-          db: admin
-        - name: userAdminAnyDatabase
-          db: admin
-      scramCredentialsSecretName: {{ .Name }}-scram-credentials
+# Image version - NOTE: Ensure this maps to a valid Bitnami tag format (e.g., "7.0", "7.0.5-debian-11-r0").
+# The exact tag might need manual adjustment based on available Bitnami images for the desired MongoDB version.
+image:
+  tag: >-
+    {{- if eq (.Parameters.version | default "8.0") "8.0" -}}
+      "8.0.9-debian-12-r0"
+    {{- else if eq .Parameters.version "7.0" -}}
+      "7.0.15-debian-12-r2"
+    {{- else if eq .Parameters.version "6.0" -}}
+      "6.0.13-debian-11-r21"
+    {{- else -}}
+      {{/* Default to latest 8.0 tag if version is unknown or unspecified */}}
+      "8.0.9-debian-12-r0"
+    {{- end -}}
 
-  statefulSet:
-    spec:
-      # PersistentVolumeClaim for each pod
-      volumeClaimTemplates:
-      - metadata:
-          name: data-volume      
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: {{ .Parameters.common.storage | default "1Gi" }}
+# Authentication - Requires a pre-existing secret
+auth:
+  enabled: true
+  # Secret must contain keys 'mongodb-root-password' and 'mongodb-replica-set-key'
+  existingSecret: {{ .Parameters.auth.existingSecretName | default (printf "%s-auth-secret" .Name) | quote }}
 
-      # Pod template overrides
-      template:
-        spec:
-          containers:
-          - name: mongod
-            resources:
-              requests:
-                cpu:    {{ .Parameters.common.resources.requests.cpu   | default "100m" }}
-                memory: {{ .Parameters.common.resources.requests.memory| default "128Mi" }}
-              limits:
-                cpu:    {{ .Parameters.common.resources.limits.cpu     | default "500m" }}
-                memory: {{ .Parameters.common.resources.limits.memory  | default "256Mi" }}
-            {{- if .Parameters.environment }}
-            env:
-            {{- range $k, $v := .Parameters.environment }}
-            - name: {{ $k }}
-              value: {{ $v | quote }}
-            {{- end }}
-            {{- end }}
+# Persistence configuration
+persistence:
+  enabled: true
+  size: {{ .Parameters.common.storage | default "1Gi" | quote }}
 
-  additionalMongodConfig:
-    storage:
-      wiredTiger:
-        engineConfig:
-          cacheSizeGB: 0.25
-{{- if .Parameters.common.exposeExternal }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Name }}-external
-  namespace: {{ .Namespace }}
-  labels:
-    app.kubernetes.io/name: mongodb
-    app.kubernetes.io/instance: {{ .Name }}
-    unbind/usd-type: {{ .Definition.Type | quote }}
-    unbind/usd-version: {{ .Definition.Version | quote }}
-    unbind/usd-category: databases
-    {{- range $key, $value := .Parameters.labels }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
-spec:
-  type: LoadBalancer
-  ports:
-    - port: 27017
-      targetPort: 27017
-      protocol: TCP
-  selector:
-    app.kubernetes.io/name: mongodb
-    app.kubernetes.io/instance: {{ .Name }}
+# Resource configuration
+resourcesPreset: "none" # Use custom resources below
+resources:
+  requests:
+    cpu: {{ .Parameters.common.resources.requests.cpu | default "100m" | quote }}
+    memory: {{ .Parameters.common.resources.requests.memory | default "128Mi" | quote }}
+  limits:
+    cpu: {{ .Parameters.common.resources.limits.cpu | default "500m" | quote }}
+    memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" | quote }}
+
+# Optional: Inject environment variables from parameters
+{{- if .Parameters.environment }}
+extraEnvVars:
+{{- range $k, $v := .Parameters.environment }}
+  - name: {{ $k | quote }}
+    value: {{ $v | quote }}
 {{- end }}
+{{- end }}
+
+# External Access via LoadBalancer (if requested)
+{{- if .Parameters.common.exposeExternal }}
+externalAccess:
+  enabled: true
+  service:
+    type: LoadBalancer
+    ports:
+      mongodb: 27017
+    # Optional: Configure loadBalancerSourceRanges, annotations etc. if needed via .Parameters
+{{- else }}
+# Ensure external access is explicitly disabled if not requested
+externalAccess:
+  enabled: false
+{{- end }}
+
+# Arbiter is enabled by default in the chart values, disable unless specifically needed/parameterized
+arbiter:
+  enabled: false
+
+# Disable metrics exporter unless explicitly configured via parameters (not currently supported)
+metrics:
+  enabled: false
+
+backup:
+  enabled: false
+
 {{- if .Parameters.s3.enabled }}
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: {{ .Name }}-backup
-  namespace: {{ .Namespace }}
-  labels:
-    app.kubernetes.io/name: mongodb
-    app.kubernetes.io/instance: {{ .Name }}
-    unbind/usd-type: {{ .Definition.Type | quote }}
-    unbind/usd-version: {{ .Definition.Version | quote }}
-    unbind/usd-category: databases
-    {{- range $key, $value := .Parameters.labels }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
-spec:
-  schedule: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" | quote }}
-  concurrencyPolicy: Forbid
-  jobTemplate:
+extraDeploy:
+  - apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: {{ .Name }}-s3-backup # Note: Renamed to avoid conflict if built-in backup is ever enabled
+      namespace: {{ .Namespace }}
+      labels:
+        # Add your standard USD labels here if needed
+        unbind/usd-type: {{ .Definition.Type | quote }}
+        unbind/usd-version: {{ .Definition.Version | quote }}
+        unbind/usd-category: databases
+        app.kubernetes.io/instance: {{ .Name }}
+        app.kubernetes.io/managed-by: Helm # Indicate Helm management
+        {{- range $key, $value := .Parameters.labels }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+    spec:
+      schedule: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" | quote }}
+      concurrencyPolicy: Forbid
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: mongodump-s3
+                # Use an appropriate mongo image version based on .Parameters.version
+                image: >-
+                  {{- $mongoVersion := .Parameters.version | default "8.0" -}}
+                  {{- if eq $mongoVersion "8.0" -}}
+                    mongo:8.0
+                  {{- else if eq $mongoVersion "7.0" -}}
+                    mongo:7.0
+                  {{- else if eq $mongoVersion "6.0" -}}
+                    mongo:6.0
+                  {{- else -}}
+                    mongo:8.0 # Default
+                  {{- end -}}
+                # Combine mongodump, aws sync, and cleanup
+                # Assumes AWS CLI is available or added via another container/modified image
+                command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Starting backup..."
+                  mongodump --host={{ .Name }}-mongodb.{{ .Namespace }}.svc.cluster.local \
+                            --username=root \
+                            --password=$MONGODB_ROOT_PASSWORD \
+                            --authenticationDatabase=admin \
+                            --out=/backup/$(date +%Y%m%d_%H%M%S)
+
+                  echo "Syncing to S3..."
+                  aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }} \
+                            --endpoint-url={{ .Parameters.s3.endpoint }} \
+                            {{- if .Parameters.s3.region }} --region={{ .Parameters.s3.region }} {{- end }}
+
+                  echo "Cleaning up local backups older than {{ .Parameters.s3.backupRetention | default 2 }} days..."
+                  find /backup -type d -mtime +{{ .Parameters.s3.backupRetention | default 2 }} -exec rm -rf {} \;
+                  echo "Backup complete."
+                env:
+                # Inject root password from the main auth secret
+                - name: MONGODB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      # Use the same secret name as defined in auth.existingSecret
+                      name: {{ .Parameters.auth.existingSecretName | default (printf "%s-auth-secret" .Name) }}
+                      key: mongodb-root-password
+                # Inject AWS Credentials from the S3 secret
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Parameters.s3.secretName }}
+                      key: {{ .Parameters.s3.accessKey | default "access_key_id" }}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Parameters.s3.secretName }}
+                      key: {{ .Parameters.s3.secretKey | default "secret_key" }}
+                volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+              # Add a container with AWS CLI if the mongo image doesn't have it
+              # - name: aws-cli
+              #   image: amazon/aws-cli:latest # Or your preferred image
+              #   command: ["sleep", "infinity"] # Keep it running or use shared process namespace
+              volumes:
+              - name: backup-storage
+                emptyDir: {}
+              restartPolicy: OnFailure
+{{- end }}
+
+{{- if .Parameters.restore.enabled }}
+  - apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: {{ .Name }}-s3-restore
+      namespace: {{ .Namespace }}
+      annotations:
+        # Helm Hook annotations
+        "helm.sh/hook": post-install,post-upgrade
+        "helm.sh/hook-weight": "1" # Run after main resources are likely ready
+        "helm.sh/hook-delete-policy": before-hook-creation # Ensure it only runs effectively once
+      labels:
+        unbind/usd-type: {{ .Definition.Type | quote }}
+        unbind/usd-version: {{ .Definition.Version | quote }}
+        unbind/usd-category: databases
+        app.kubernetes.io/instance: {{ .Name }}
+        app.kubernetes.io/managed-by: Helm
+        {{- range $key, $value := .Parameters.labels }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
     spec:
       template:
         spec:
           containers:
-          - name: mongodump
-            image: mongo:{{ .Parameters.version | default "7.0" }}
+          - name: mongorestore-s3
+            image: >-
+              {{- $mongoVersion := .Parameters.version | default "8.0" -}}
+              {{- if eq $mongoVersion "8.0" -}}
+                mongo:8.0
+              {{- else if eq $mongoVersion "7.0" -}}
+                mongo:7.0
+              {{- else if eq $mongoVersion "6.0" -}}
+                mongo:6.0
+              {{- else -}}
+                mongo:8.0 # Default
+              {{- end -}}
             command:
             - /bin/sh
             - -c
             - |
-              mongodump --host={{ .Name }}-svc.{{ .Namespace }}.svc.cluster.local --out=/backup/$(date +%Y%m%d_%H%M%S) && \
-              aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix }}/backups/{{ .Name }} --endpoint-url={{ .Parameters.s3.endpoint }} --region={{ .Parameters.s3.region }} && \
-              find /backup -type d -mtime +{{ .Parameters.s3.backupRetention | default 2 }} -exec rm -rf {} \;
+              echo "Downloading restore data from S3..."
+              aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore \
+                        --endpoint-url={{ .Parameters.restore.endpoint }} \
+                        {{- if .Parameters.restore.region }} --region={{ .Parameters.restore.region }} {{- end }}
+
+              RESTORE_DIR=$(ls -t /restore | head -n1)
+              if [ -z "$RESTORE_DIR" ]; then
+                echo "Error: No backup directory found in /restore"
+                exit 1
+              fi
+              echo "Restoring from directory: $RESTORE_DIR ..."
+              mongorestore --host={{ .Name }}-mongodb.{{ .Namespace }}.svc.cluster.local \
+                         --username=root \
+                         --password=$MONGODB_ROOT_PASSWORD \
+                         --authenticationDatabase=admin \
+                         /restore/$RESTORE_DIR
+              echo "Restore complete."
             env:
+            # Inject root password from the main auth secret
+            - name: MONGODB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  # Use the same secret name as defined in auth.existingSecret
+                  name: {{ .Parameters.auth.existingSecretName | default (printf "%s-auth-secret" .Name) }}
+                  key: mongodb-root-password
+            # Inject AWS Credentials from the Restore secret
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Parameters.s3.secretName }}
-                  key: {{ .Parameters.s3.accessKey | default "access_key_id" }}
+                  name: {{ .Parameters.restore.secretName }}
+                  key: {{ .Parameters.restore.accessKey | default "access_key_id" }}
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Parameters.s3.secretName }}
-                  key: {{ .Parameters.s3.secretKey | default "secret_key" }}
+                  name: {{ .Parameters.restore.secretName }}
+                  key: {{ .Parameters.restore.secretKey | default "secret_key" }}
             volumeMounts:
-            - name: backup
-              mountPath: /backup
+            - name: restore-storage
+              mountPath: /restore
           volumes:
-          - name: backup
+          - name: restore-storage
             emptyDir: {}
-          restartPolicy: OnFailure
+          restartPolicy: Never # Important: Change from OnFailure for hooks
 {{- end }}
-{{- if .Parameters.restore.enabled }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: {{ .Name }}-restore
-  namespace: {{ .Namespace }}
-  labels:
-    app.kubernetes.io/name: mongodb
-    app.kubernetes.io/instance: {{ .Name }}
-    unbind/usd-type: {{ .Definition.Type | quote }}
-    unbind/usd-version: {{ .Definition.Version | quote }}
-    unbind/usd-category: databases
-    {{- range $key, $value := .Parameters.labels }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
-spec:
-  template:
-    spec:
-      containers:
-      - name: mongorestore
-        image: mongo:{{ .Parameters.version | default "7.0" }}
-        command:
-        - /bin/sh
-        - -c
-        - |
-          aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix }}/backups/{{ .Parameters.restore.cluster }} /restore --endpoint-url={{ .Parameters.restore.endpoint }} --region={{ .Parameters.restore.region }} && \
-          mongorestore --host={{ .Name }}-svc.{{ .Namespace }}.svc.cluster.local /restore/$(ls -t /restore | head -n1)
-        env:
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Parameters.restore.secretName }}
-              key: {{ .Parameters.restore.accessKey | default "access_key_id" }}
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Parameters.restore.secretName }}
-              key: {{ .Parameters.restore.secretKey | default "secret_key" }}
-        volumeMounts:
-        - name: restore
-          mountPath: /restore
-      volumes:
-      - name: restore
-        emptyDir: {}
-      restartPolicy: OnFailure
-{{- end }} 
