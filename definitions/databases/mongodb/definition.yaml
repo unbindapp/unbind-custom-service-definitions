@@ -140,17 +140,21 @@ extraDeploy:
                             --out=/backup/$(date +%Y%m%d_%H%M%S)
 
                   echo "Syncing to S3..."
-                  aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}
+                  aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }} \
+                    --endpoint-url={{ .Parameters.s3.endpoint }}
 
                   echo "Managing retention..."
                   # List all backups, sort by date (newest first), and delete oldest ones beyond retention
                   aws s3 ls s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/ \
+                    --endpoint-url={{ .Parameters.s3.endpoint }} \
                     | sort -r \
                     | tail -n +$(({{ .Parameters.s3.backupRetention | default "7" }} + 1)) \
                     | awk '{print $4}' \
                     | while read -r backup; do
                         echo "Deleting old backup: $backup"
-                        aws s3 rm "s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/$backup" --recursive
+                        aws s3 rm "s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/$backup" \
+                          --recursive \
+                          --endpoint-url={{ .Parameters.s3.endpoint }}
                       done
 
                   echo "Backup complete."
@@ -240,7 +244,8 @@ extraDeploy:
               aws s3 ls s3://{{ .Parameters.restore.bucket }} --endpoint-url={{ .Parameters.restore.endpoint }} --debug
               
               echo "Downloading restore data from S3..."
-              aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore
+              aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore \
+                --endpoint-url={{ .Parameters.restore.endpoint }}
 
               RESTORE_DIR=$(ls -t /restore | head -n1)
               if [ -z "$RESTORE_DIR" ]; then
