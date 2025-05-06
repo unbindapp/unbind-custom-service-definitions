@@ -144,19 +144,38 @@ extraDeploy:
                     --endpoint-url={{ .Parameters.s3.endpoint }} --checksum-algorithm CRC32
 
                   echo "Managing retention..."
-                  # List all backups, sort by date (newest first), and delete oldest ones beyond retention
-                  aws s3 ls s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/ \
+                  BACKUP_DIRS=$(aws s3 ls s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/ \
                     --endpoint-url={{ .Parameters.s3.endpoint }} \
-                    | sort -r \
-                    | tail -n +$(({{ .Parameters.s3.backupRetention | default "7" }} + 1)) \
-                    | awk '{print $4}' \
-                    | while read -r backup; do
-                        echo "Deleting old backup: $backup"
-                        aws s3 rm "s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/$backup" \
+                    | grep -E '[0-9]{8}_[0-9]{6}' \
+                    | awk '{print $2}' \
+                    | sort)
+
+                  # Count the number of backups
+                  BACKUP_COUNT=$(echo "$BACKUP_DIRS" | wc -l)
+                  RETENTION={{ .Parameters.s3.backupRetention | default "7" }}
+
+                  # Delete oldest backups if we have more than retention limit
+                  if [ "$BACKUP_COUNT" -gt "$RETENTION" ]; then
+                    # Calculate how many to delete
+                    TO_DELETE=$((BACKUP_COUNT - RETENTION))
+                    
+                    # Get the oldest backups to delete
+                    DIRS_TO_DELETE=$(echo "$BACKUP_DIRS" | head -n "$TO_DELETE")
+                    
+                    # Delete each old backup
+                    echo "$DIRS_TO_DELETE" | while read -r dir; do
+                      if [ -n "$dir" ]; then
+                        echo "Deleting old backup: $dir"
+                        aws s3 rm "s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/$dir" \
                           --recursive \
                           --endpoint-url={{ .Parameters.s3.endpoint }}
-                      done
-
+                      fi
+                    done
+                    
+                    echo "Deleted $TO_DELETE old backups, keeping $RETENTION latest backups."
+                  else
+                    echo "Only have $BACKUP_COUNT backups, below retention limit of $RETENTION. Nothing to delete."
+                  fi
                   echo "Backup complete."
                 env:
                 # Inject root password from the main auth secret
