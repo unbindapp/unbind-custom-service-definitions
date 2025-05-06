@@ -146,7 +146,7 @@ extraDeploy:
                   echo "Managing retention..."
                   # List all backups, sort by date (newest first), and delete oldest ones beyond retention
                   aws s3 ls s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/ \
-                    --endpoint-url={{ .Parameters.s3.endpoint }} --checksum-algorithm CRC32 \
+                    --endpoint-url={{ .Parameters.s3.endpoint }} \
                     | sort -r \
                     | tail -n +$(({{ .Parameters.s3.backupRetention | default "7" }} + 1)) \
                     | awk '{print $4}' \
@@ -154,7 +154,6 @@ extraDeploy:
                         echo "Deleting old backup: $backup"
                         aws s3 rm "s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/$backup" \
                           --recursive \
-                          --checksum-algorithm CRC32 \
                           --endpoint-url={{ .Parameters.s3.endpoint }}
                       done
 
