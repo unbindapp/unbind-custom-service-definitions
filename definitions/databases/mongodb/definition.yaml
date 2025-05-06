@@ -140,11 +140,19 @@ extraDeploy:
                             --out=/backup/$(date +%Y%m%d_%H%M%S)
 
                   echo "Syncing to S3..."
-                  aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }} \
-                            --endpoint-url={{ .Parameters.s3.endpoint }}
+                  aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}
 
-                  echo "Cleaning up local backups older than {{ .Parameters.s3.backupRetention | default 2 }} days..."
-                  find /backup -type d -mtime +{{ .Parameters.s3.backupRetention | default 2 }} -exec rm -rf {} \;
+                  echo "Managing retention..."
+                  # List all backups, sort by date (newest first), and delete oldest ones beyond retention
+                  aws s3 ls s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/ \
+                    | sort -r \
+                    | tail -n +$(({{ .Parameters.s3.backupRetention | default "7" }} + 1)) \
+                    | awk '{print $4}' \
+                    | while read -r backup; do
+                        echo "Deleting old backup: $backup"
+                        aws s3 rm "s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }}/$backup" --recursive
+                      done
+
                   echo "Backup complete."
                 env:
                 # Inject root password from the main auth secret
@@ -169,6 +177,10 @@ extraDeploy:
                 - name: AWS_DEFAULT_REGION
                   value: {{ .Parameters.s3.region | quote }}
                 {{- end }}
+                - name: AWS_S3_FORCE_PATH_STYLE
+                  value: "true"
+                - name: AWS_S3_ENDPOINT_URL
+                  value: {{ .Parameters.s3.endpoint | quote }}
                 volumeMounts:
                 - name: backup-storage
                   mountPath: /backup
@@ -224,9 +236,11 @@ extraDeploy:
               ./aws/install
               rm -rf aws awscliv2.zip
 
+              echo "Verifying S3 connection..."
+              aws s3 ls s3://{{ .Parameters.restore.bucket }} --endpoint-url={{ .Parameters.restore.endpoint }} --debug
+              
               echo "Downloading restore data from S3..."
-              aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore \
-                        --endpoint-url={{ .Parameters.restore.endpoint }}
+              aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore
 
               RESTORE_DIR=$(ls -t /restore | head -n1)
               if [ -z "$RESTORE_DIR" ]; then
@@ -263,6 +277,10 @@ extraDeploy:
             - name: AWS_DEFAULT_REGION
               value: {{ .Parameters.restore.region | quote }}
             {{- end }}
+            - name: AWS_S3_FORCE_PATH_STYLE
+              value: "true"
+            - name: AWS_S3_ENDPOINT_URL
+              value: {{ .Parameters.restore.endpoint | quote }}
             volumeMounts:
             - name: restore-storage
               mountPath: /restore
