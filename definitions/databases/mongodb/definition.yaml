@@ -141,8 +141,7 @@ extraDeploy:
 
                   echo "Syncing to S3..."
                   aws s3 sync /backup s3://{{ .Parameters.s3.bucket }}/{{ .Parameters.s3.backupPrefix | default "mongodb" }}/backups/{{ .Name }} \
-                            --endpoint-url={{ .Parameters.s3.endpoint }} \
-                            {{- if .Parameters.s3.region }} --region={{ .Parameters.s3.region }} {{- end }}
+                            --endpoint-url={{ .Parameters.s3.endpoint }}
 
                   echo "Cleaning up local backups older than {{ .Parameters.s3.backupRetention | default 2 }} days..."
                   find /backup -type d -mtime +{{ .Parameters.s3.backupRetention | default 2 }} -exec rm -rf {} \;
@@ -166,6 +165,10 @@ extraDeploy:
                     secretKeyRef:
                       name: {{ .Parameters.s3.secretName }}
                       key: {{ .Parameters.s3.secretKey | default "secret_key" }}
+                {{- if .Parameters.s3.region }}
+                - name: AWS_DEFAULT_REGION
+                  value: {{ .Parameters.s3.region | quote }}
+                {{- end }}
                 volumeMounts:
                 - name: backup-storage
                   mountPath: /backup
@@ -223,8 +226,7 @@ extraDeploy:
 
               echo "Downloading restore data from S3..."
               aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore \
-                        --endpoint-url={{ .Parameters.restore.endpoint }} \
-                        {{- if .Parameters.restore.region }} --region={{ .Parameters.restore.region }} {{- end }}
+                        --endpoint-url={{ .Parameters.restore.endpoint }}
 
               RESTORE_DIR=$(ls -t /restore | head -n1)
               if [ -z "$RESTORE_DIR" ]; then
@@ -257,6 +259,10 @@ extraDeploy:
                 secretKeyRef:
                   name: {{ .Parameters.restore.secretName }}
                   key: {{ .Parameters.restore.secretKey | default "secret_key" }}
+            {{- if .Parameters.restore.region }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Parameters.restore.region | quote }}
+            {{- end }}
             volumeMounts:
             - name: restore-storage
               mountPath: /restore
