@@ -112,14 +112,28 @@ extraDeploy:
               - name: mongodump-s3
                 # Use an appropriate mongo image version based on .Parameters.version
                 image: {{ if eq (.Parameters.version | default "8.0") "8.0" }}mongo:8.0{{ else if eq .Parameters.version "7.0" }}mongo:7.0{{ else if eq .Parameters.version "6.0" }}mongo:6.0{{ else }}mongo:8.0{{ end }}
-                # Combine mongodump, aws sync, and cleanup
-                # Assumes AWS CLI is available or added via another container/modified image
                 command:
                 - /bin/sh
                 - -c
                 - |
+                  # Install AWS CLI
+                  apt-get update && apt-get install -y curl unzip
+                  ARCH=$(uname -m)
+                  if [ "$ARCH" = "x86_64" ]; then
+                    ARCH="x86_64"
+                  elif [ "$ARCH" = "aarch64" ]; then
+                    ARCH="aarch64"
+                  else
+                    echo "Unsupported architecture: $ARCH"
+                    exit 1
+                  fi
+                  curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o "awscliv2.zip"
+                  unzip awscliv2.zip
+                  ./aws/install
+                  rm -rf aws awscliv2.zip
+
                   echo "Starting backup..."
-                  mongodump --host={{ .Name }}-mongodb.{{ .Namespace }}.svc.cluster.local \
+                  mongodump --host={{ .Name }}.{{ .Namespace }}.svc.cluster.local \
                             --username=root \
                             --password=$MONGODB_ROOT_PASSWORD \
                             --authenticationDatabase=admin \
@@ -155,10 +169,6 @@ extraDeploy:
                 volumeMounts:
                 - name: backup-storage
                   mountPath: /backup
-              # Add a container with AWS CLI if the mongo image doesn't have it
-              # - name: aws-cli
-              #   image: amazon/aws-cli:latest # Or your preferred image
-              #   command: ["sleep", "infinity"] # Keep it running or use shared process namespace
               volumes:
               - name: backup-storage
                 emptyDir: {}
@@ -195,6 +205,22 @@ extraDeploy:
             - /bin/sh
             - -c
             - |
+              # Install AWS CLI
+              apt-get update && apt-get install -y curl unzip
+              ARCH=$(uname -m)
+              if [ "$ARCH" = "x86_64" ]; then
+                ARCH="x86_64"
+              elif [ "$ARCH" = "aarch64" ]; then
+                ARCH="aarch64"
+              else
+                echo "Unsupported architecture: $ARCH"
+                exit 1
+              fi
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip
+              ./aws/install
+              rm -rf aws awscliv2.zip
+
               echo "Downloading restore data from S3..."
               aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore \
                         --endpoint-url={{ .Parameters.restore.endpoint }} \
@@ -206,7 +232,7 @@ extraDeploy:
                 exit 1
               fi
               echo "Restoring from directory: $RESTORE_DIR ..."
-              mongorestore --host={{ .Name }}-mongodb.{{ .Namespace }}.svc.cluster.local \
+              mongorestore --host={{ .Name }}.{{ .Namespace }}.svc.cluster.local \
                          --username=root \
                          --password=$MONGODB_ROOT_PASSWORD \
                          --authenticationDatabase=admin \
