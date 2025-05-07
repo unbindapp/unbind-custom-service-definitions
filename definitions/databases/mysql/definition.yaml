@@ -61,9 +61,33 @@ spec:
   replicas: {{ $common.replicas | default 1 }}
   mysqlConfigMapName: {{ .Name }}-custom-mycnf
 
+  # labels for the Services MOCO creates
+  primaryServiceTemplate:
+    metadata:
+      labels:
+{{- range $k, $v := $labels }}
+        {{ $k }}: {{ $v | quote }}
+{{- end }}
+
+  replicaServiceTemplate:
+    metadata:
+      labels:
+        # usd-specific labels
+        unbind/usd-type: {{ .Definition.Type | quote }}
+        unbind/usd-version: {{ .Definition.Version | quote }}
+        unbind/usd-category: databases
+{{- range $k, $v := $labels }}
+        {{ $k }}: {{ $v | quote }}
+{{- end }}
+
+
   podTemplate:
     metadata:
       labels:
+        # usd-specific labels
+        unbind/usd-type: {{ .Definition.Type | quote }}
+        unbind/usd-version: {{ .Definition.Version | quote }}
+        unbind/usd-category: databases
         # Propagate custom labels to pods
 {{- range $k, $v := $labels }}
         {{ $k }}: {{ $v | quote }}
@@ -162,7 +186,6 @@ spec:
     workVolume:
       emptyDir: {}
 {{- end }}
-
 ---
 apiVersion: batch/v1
 kind: Job
