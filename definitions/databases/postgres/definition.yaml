@@ -48,7 +48,7 @@ spec:
   {{- if .Parameters.restore.enabled }}
   clone:
     # use latest backup unless you supply your own timestamp
-    timestamp: {{ $restore.restorePoint | default (timeFormat .RFC3339 now) | quote }}
+    timestamp: {{ .Parameters.restore.restorePoint | default (timeFormat .RFC3339 now) | quote }}
     cluster:   {{ .Parameters.restore.cluster }}
   {{- end }}
 
