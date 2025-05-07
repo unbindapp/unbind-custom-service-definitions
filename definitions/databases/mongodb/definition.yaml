@@ -20,7 +20,8 @@ global:
 # Image version - NOTE: Ensure this maps to a valid Bitnami tag format (e.g., "7.0", "7.0.5-debian-11-r0").
 # The exact tag might need manual adjustment based on available Bitnami images for the desired MongoDB version.
 image:
-  repository: ghcr.io/unbindapp/bitnami-mongodb
+  registry: ghcr.io
+  repository: unbindapp/bitnami-mongodb
   tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.9{{ else if eq .Parameters.version "7.0" }}7.0.20{{ else if eq .Parameters.version "6.0" }}6.0.23{{ else }} 8.0.9{{ end }}
 
 extraFlags:
