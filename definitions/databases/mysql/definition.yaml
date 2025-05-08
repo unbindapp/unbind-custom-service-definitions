@@ -113,6 +113,12 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: mysql-data
+        labels:               # ← your new labels
+          app.kubernetes.io/name:  mysql
+          app.kubernetes.io/instance: {{ .Name }}
+    {{- range $k, $v := $labels }}
+          {{ $k }}: {{ $v | quote }}
+    {{- end }}
       spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
