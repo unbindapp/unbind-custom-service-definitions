@@ -21,7 +21,7 @@ schema:
     dockerImage:
       type: "string"
       description: "Spilo image version"
-      default: "unbindapp/spilo:17-latest"
+      default: "ghcr.io/unbindapp/spilo:17-latest"
     version:
       type: "string"
       description: "PostgreSQL version"
