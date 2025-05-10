@@ -14,10 +14,18 @@ metadata:
 spec:
   configuration:
     users:
-      default/password_sha256_hex: {{ .Parameters.userPasswordSHA256 }}
+      default/password:
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Parameters.existingSecretName }}
+            key: password
       # Add backup user for clickhouse-backup
       backup/networks/ip: 0.0.0.0/0
-      backup/password_sha256_hex: {{ .Parameters.userPasswordSHA256 }}
+      backup/password:
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Parameters.existingSecretName }}
+            key: backup-password
     settings:
       default/max_concurrent_queries: 100
 

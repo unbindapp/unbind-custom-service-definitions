@@ -33,9 +33,9 @@ schema:
       type: "boolean"
       description: "Expose external service"
       default: false
-    userPasswordSHA256:
+    existingSecretName:
       type: "string"
-      description: "SHA256 hash of the user password"
+      description: "Name of the existing secret containing ClickHouse credentials"
     s3:
       $ref: "#/imports/s3Schema"
       description: "S3 configuration for backups via sidecar (optional)"
