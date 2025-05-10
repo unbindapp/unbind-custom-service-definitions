@@ -136,9 +136,6 @@ spec:
               ports:
                 - name: backup-rest
                   containerPort: 7171
-              volumeMounts:
-                - name: clickhouse-data
-                  mountPath: /var/lib/clickhouse
             {{- end }}
 
     volumeClaimTemplates:
