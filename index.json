@@ -6,7 +6,8 @@
         "postgres",
         "redis",
         "mysql",
-        "mongodb"
+        "mongodb",
+        "clickhouse"
       ]
     }
   ]
