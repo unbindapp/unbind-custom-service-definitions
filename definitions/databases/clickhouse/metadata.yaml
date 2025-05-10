@@ -18,6 +18,11 @@ schema:
       $ref: "#/imports/base"
     labels:
       $ref: "#/imports/labelsSchema"
+    clusterName:
+      type: "string"
+      description: "Name of the ClickHouse cluster"
+      default: "clickhouse"
+      required: true
     version:
       type: "string"
       description: "ClickHouse version"

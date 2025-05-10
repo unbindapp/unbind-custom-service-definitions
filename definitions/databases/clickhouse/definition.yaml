@@ -38,7 +38,7 @@ spec:
     {{- end }}
 
     clusters:
-      - name: {{ .Name }}
+      - name: {{ .Parameters.clusterName }}
         layout:
           shardsCount: {{ .Parameters.shardsCount | default 1 }}
           replicasCount: {{ .Parameters.common.replicas | default 1 }}
@@ -46,8 +46,16 @@ spec:
   templates:
     podTemplates:
       - name: clickhouse-pod-template
-        {{- if .Parameters.s3.enabled }}
         metadata:
+          labels:
+            # Standard USD labels
+            unbind/usd-type: {{ .Definition.Type | quote }}
+            unbind/usd-version: {{ .Definition.Version | quote }}
+            unbind/usd-category: databases
+            {{- range $key, $value := .Parameters.labels }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+        {{- if .Parameters.s3.enabled }}
           annotations:
             prometheus.io/scrape: 'true'
             prometheus.io/port: '8888'
@@ -139,6 +147,14 @@ spec:
 
     volumeClaimTemplates:
       - name: clickhouse-data
+        labels:
+          # Standard USD labels
+          unbind/usd-type: {{ .Definition.Type | quote }}
+          unbind/usd-version: {{ .Definition.Version | quote }}
+          unbind/usd-category: databases
+          {{- range $key, $value := .Parameters.labels }}
+          {{ $key }}: {{ $value | quote }}
+          {{- end }}
         spec:
           accessModes:
             - ReadWriteOnce
@@ -148,6 +164,14 @@ spec:
 
     serviceTemplates:
       - name: service-template
+        labels:
+          # Standard USD labels
+          unbind/usd-type: {{ .Definition.Type | quote }}
+          unbind/usd-version: {{ .Definition.Version | quote }}
+          unbind/usd-category: databases
+          {{- range $key, $value := .Parameters.labels }}
+          {{ $key }}: {{ $value | quote }}
+          {{- end }}
         spec:
           ports:
             - name: http
