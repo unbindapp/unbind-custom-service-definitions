@@ -19,6 +19,9 @@ commonLabels:
   {{ $key }}: {{ $value | quote }}
   {{- end }}
 
+image:
+  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.0-debian-12-r0{{ else if eq .Parameters.version "7.4" }}7.4.3-debian-12-r0{{ else }}8.0.0-debian-12-r0{{ end }}
+
 auth:
   enabled: true
   existingSecret: {{ .Parameters.secretName | quote }}
