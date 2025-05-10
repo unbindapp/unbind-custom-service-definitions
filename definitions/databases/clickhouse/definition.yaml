@@ -19,6 +19,7 @@ spec:
           secretKeyRef:
             name: {{ .Parameters.existingSecretName }}
             key: password
+      default/networks/ip: 0.0.0.0/0 
       # Add backup user for clickhouse-backup
       backup/networks/ip: 0.0.0.0/0
       backup/password:
