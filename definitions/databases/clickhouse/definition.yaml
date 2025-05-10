@@ -140,10 +140,6 @@ spec:
                 - name: clickhouse-data
                   mountPath: /var/lib/clickhouse
             {{- end }}
-          volumes:
-            - name: clickhouse-data
-              persistentVolumeClaim:
-                claimName: {{ .Name }}-data
 
     volumeClaimTemplates:
       - name: clickhouse-data
