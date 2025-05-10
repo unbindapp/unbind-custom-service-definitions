@@ -37,6 +37,12 @@ spec:
           port: 2181
     {{- end }}
 
+    clusters:
+      - name: {{ .Name }}
+        layout:
+          shardsCount: {{ .Parameters.shardsCount | default 1 }}
+          replicasCount: {{ .Parameters.common.replicas | default 1 }}
+
   templates:
     podTemplates:
       - name: clickhouse-pod-template
@@ -161,11 +167,6 @@ spec:
       volumeClaimTemplate: clickhouse-data
       serviceTemplate: service-template
 
-  clusters:
-    - name: {{ .Name }}
-      layout:
-        shardsCount: {{ .Parameters.shardsCount | default 1 }}
-        replicasCount: {{ .Parameters.common.replicas | default 1 }}
 {{- if .Parameters.s3.enabled }}
 ---
 apiVersion: batch/v1
