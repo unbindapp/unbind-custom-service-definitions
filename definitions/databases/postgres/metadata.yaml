@@ -42,3 +42,7 @@ schema:
       additionalProperties:
         type: "string"
       default: {}
+    initdb:
+      type: "string"
+      description: "PostgreSQL initialization script to run on first startup"
+      default: ""
