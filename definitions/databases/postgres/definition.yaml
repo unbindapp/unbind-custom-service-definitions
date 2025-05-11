@@ -45,12 +45,11 @@ spec:
       cpu:    {{ .Parameters.common.resources.limits.cpu    | default "500m" }}
       memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
 
-  {{- if .Parameters.additionalDatabaseName }}
+  {{- if ne .Parameters.defaultDatabaseName "postgres" }}
   databases:
-    {{ .Parameters.additionalDatabaseName }}: {{ .Parameters.additionalDatabaseName }}
-
+    {{ .Parameters.defaultDatabaseName }}: {{ .Parameters.defaultDatabaseName }}
   users:
-    {{ .Parameters.additionalDatabaseName }}:
+    {{ .Parameters.defaultDatabaseName }}:
       - SUPERUSER
   {{- end }}
 

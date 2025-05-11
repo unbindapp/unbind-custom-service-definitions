@@ -22,14 +22,11 @@ schema:
       type: "string"
       description: "Spilo image version"
       default: "ghcr.io/unbindapp/spilo:17-latest"
-    additionalDatabaseName:
-      type: "string"
-      description: "Create an additional database and user with this name"
-      default: ""
     defaultDatabaseName:
       type: "string"
       description: "The default database used to generate secrets (DATABASE_URL, etc.)"
-      default: "postgres"
+      default: "primarydb"
+      required: true
     version:
       type: "string"
       description: "PostgreSQL version"
