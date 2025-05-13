@@ -16,7 +16,7 @@ metadata:
 
 spec:
   teamId: {{ .TeamID }}
-  dockerImage: {{ if .Parameters.dockerImage }}{{ .Parameters.dockerImage }}{{ else }}{{ printf "ghcr.io/unbindapp/spilo:%s-15002886561" (.Parameters.version | default "17") }}{{ end }}
+  dockerImage: {{ if .Parameters.dockerImage }}{{ .Parameters.dockerImage }}{{ else }}{{ printf "ghcr.io/unbindapp/spilo:%s-15005834808" (.Parameters.version | default "17") }}{{ end }}
   enableMasterLoadBalancer: {{ .Parameters.common.exposeExternal | default false }}
   postgresql:
     version: {{ .Parameters.version | default "17" | quote }}
