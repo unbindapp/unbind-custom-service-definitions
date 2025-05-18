@@ -20,6 +20,8 @@ spec:
   enableMasterLoadBalancer: {{ .Parameters.common.exposeExternal | default false }}
   postgresql:
     version: {{ .Parameters.version | default "17" | quote }}
+    parameters:
+      wal_level: {{ .Parameters.walLevel | default "replica" | quote }}
   numberOfInstances: {{ .Parameters.common.replicas | default 1 }}
   allowedSourceRanges:
     - 0.0.0.0/0
