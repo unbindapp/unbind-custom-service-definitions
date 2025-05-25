@@ -4,7 +4,7 @@ type: "helm"
 version: "1.0.0"
 chart:
   name: "redis"
-  version: "21.1.6-pvc.0"
+  version: "21.1.6-pvc.1"
   repository: "oci://ghcr.io/unbindapp/helm"
   repositoryName: "unbindapp-ghcr"
 port: 6379
