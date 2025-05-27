@@ -69,6 +69,10 @@ spec:
   primaryServiceTemplate:
     metadata:
       labels:
+        # usd-specific labels
+        unbind/usd-type: {{ .Definition.Type | quote }}
+        unbind/usd-version: {{ .Definition.Version | quote }}
+        unbind/usd-category: databases
 {{- range $k, $v := $labels }}
         {{ $k }}: {{ $v | quote }}
 {{- end }}
@@ -117,9 +121,13 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: mysql-data
-        labels:               # ← your new labels
+        labels:
           app.kubernetes.io/name:  mysql
           app.kubernetes.io/instance: {{ .Name }}
+          # usd-specific labels
+          unbind/usd-type: {{ .Definition.Type | quote }}
+          unbind/usd-version: {{ .Definition.Version | quote }}
+          unbind/usd-category: databases
     {{- range $k, $v := $labels }}
           {{ $k }}: {{ $v | quote }}
     {{- end }}
