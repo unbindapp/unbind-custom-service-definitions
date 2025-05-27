@@ -260,7 +260,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: run-backup-cron
-              image: "clickhouse/clickhouse-server:{{ .Parameters.version | default "25.4" }}"
+              image: "clickhouse/clickhouse-server:{{ .Parameters.version | default "25.5" }}"
               imagePullPolicy: IfNotPresent
               env:
                 # Using first replica in each shard
@@ -357,7 +357,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: clickhouse-restore
-          image: clickhouse/clickhouse-client:{{ .Parameters.version | default "25.4" }}
+          image: clickhouse/clickhouse-client:{{ .Parameters.version | default "25.5" }}
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_SCHEMA_RESTORE_SERVICES
