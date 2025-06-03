@@ -14,6 +14,12 @@ metadata:
 spec:
   configuration:
     files:
+      config.d/00-listen-ipv4-only.xml: |
+        <clickhouse>
+          <!-- Delete the “::” listen_host that the base image ships
+               so only the operator’s 0.0.0.0 entry remains -->
+          <listen_host remove="remove">::</listen_host>
+        </clickhouse>
       config.d/99-logging.xml: |
         <clickhouse>
           <logger>
@@ -308,7 +314,6 @@ spec:
                   
                   echo "BACKUP COMPLETED SUCCESSFULLY"
 {{- end }}
-
 {{- if .Parameters.restore.enabled }}
 ---
 apiVersion: batch/v1
