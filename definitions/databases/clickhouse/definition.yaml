@@ -180,6 +180,33 @@ spec:
                   value: "true"
                 - name: S3_DISABLE_SSL
                   value: "false"
+                # ClickHouse connection settings for backup
+                - name: CLICKHOUSE_USERNAME
+                  value: "backup"
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Parameters.existingSecretName }}
+                      key: backup-password
+                - name: CLICKHOUSE_HOST
+                  value: "localhost"
+                - name: CLICKHOUSE_PORT
+                  value: "9000"
+                # Additional clickhouse-backup configuration for proper integration
+                - name: CLICKHOUSE_SYNC_REPLICATED_TABLES
+                  value: "true"
+                - name: CLICKHOUSE_FREEZE_BY_PART
+                  value: "false"
+                - name: API_CREATE_INTEGRATION_TABLES
+                  value: "true"
+                - name: API_ALLOW_PARALLEL
+                  value: "false"
+                - name: BACKUPS_TO_KEEP_LOCAL
+                  value: "0"
+                - name: UPLOAD_BY_PART
+                  value: "true"
+                - name: DOWNLOAD_BY_PART
+                  value: "true"
               ports:
                 - name: backup-rest
                   containerPort: 7171
@@ -228,6 +255,11 @@ spec:
             - name: interserver
               port: 9009
               targetPort: 9009
+            {{- if .Parameters.s3.enabled }}
+            - name: backup-api
+              port: 7171
+              targetPort: 7171
+            {{- end }}
           type: {{ if .Parameters.common.exposeExternal }}LoadBalancer{{ else }}ClusterIP{{ end }}
 
   defaults:
@@ -235,110 +267,6 @@ spec:
       podTemplate: clickhouse-pod-template
       volumeClaimTemplate: clickhouse-data
       serviceTemplate: service-template
-
-{{- if .Parameters.s3.enabled }}
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: "{{ .Name }}-backup-cron"
-  namespace: "{{ .Namespace }}"
-spec:
-  # Schedule default to daily at midnight
-  schedule: "{{ .Parameters.s3.backupSchedule | default "0 0 * * *" }}"
-  concurrencyPolicy: "Forbid"
-  jobTemplate:
-    spec:
-      backoffLimit: 1
-      completions: 1
-      parallelism: 1
-      template:
-        metadata:
-          labels:
-            app: "{{ .Name }}-backup-cron"
-        spec:
-          restartPolicy: Never
-          containers:
-            - name: run-backup-cron
-              image: "clickhouse/clickhouse-server:{{ .Parameters.version | default "25.5" }}"
-              imagePullPolicy: IfNotPresent
-              env:
-                # Using first replica in each shard
-                - name: CLICKHOUSE_SERVICES
-                  value: "chi-{{ .Name }}-{{ .Name }}-0-0"
-                - name: CLICKHOUSE_PORT
-                  value: "9000"
-                - name: BACKUP_USER
-                  value: backup
-                - name: BACKUP_PASSWORD
-                  value: "backup_password"
-                # Enable incremental backups, 1 for enabled, 0 for disabled
-                - name: MAKE_INCREMENT_BACKUP
-                  value: "1"
-                # Which day of the week to make full backups (1=Monday, 7=Sunday)
-                - name: FULL_BACKUP_WEEKDAY
-                  value: "1"
-              command:
-                - bash
-                - -ec
-                - |
-                  CLICKHOUSE_SERVICES=$(echo $CLICKHOUSE_SERVICES | tr "," " ");
-                  BACKUP_DATE=$(date +%Y-%m-%d-%H-%M-%S);
-                  declare -A BACKUP_NAMES;
-                  declare -A DIFF_FROM;
-                  if [[ "" != "$BACKUP_PASSWORD" ]]; then
-                    BACKUP_PASSWORD="--password=$BACKUP_PASSWORD";
-                  fi;
-                  for SERVER in $CLICKHOUSE_SERVICES; do
-                    if [[ "1" == "$MAKE_INCREMENT_BACKUP" ]]; then
-                      LAST_FULL_BACKUP=$(clickhouse-client -q "SELECT name FROM system.backup_list WHERE location='remote' AND name LIKE '%${SERVER}%' AND name LIKE '%full%' AND desc NOT LIKE 'broken%' ORDER BY created DESC LIMIT 1 FORMAT TabSeparatedRaw" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD);
-                      TODAY_FULL_BACKUP=$(clickhouse-client -q "SELECT name FROM system.backup_list WHERE location='remote' AND name LIKE '%${SERVER}%' AND name LIKE '%full%' AND desc NOT LIKE 'broken%' AND toDate(created) = today() ORDER BY created DESC LIMIT 1 FORMAT TabSeparatedRaw" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD)
-                      PREV_BACKUP_NAME=$(clickhouse-client -q "SELECT name FROM system.backup_list WHERE location='remote' AND desc NOT LIKE 'broken%' ORDER BY created DESC LIMIT 1 FORMAT TabSeparatedRaw" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD);
-                      DIFF_FROM[$SERVER]="";
-                      if [[ ("$FULL_BACKUP_WEEKDAY" == "$(date +%u)" && "" == "$TODAY_FULL_BACKUP") || "" == "$PREV_BACKUP_NAME" || "" == "$LAST_FULL_BACKUP" ]]; then
-                        BACKUP_NAMES[$SERVER]="full-$BACKUP_DATE";
-                      else
-                        BACKUP_NAMES[$SERVER]="increment-$BACKUP_DATE";
-                        DIFF_FROM[$SERVER]="--diff-from-remote=$PREV_BACKUP_NAME";
-                      fi
-                    else
-                      BACKUP_NAMES[$SERVER]="full-$BACKUP_DATE";
-                    fi;
-                    echo "set backup name on $SERVER = ${BACKUP_NAMES[$SERVER]}";
-                  done;
-                  for SERVER in $CLICKHOUSE_SERVICES; do
-                    echo "create ${BACKUP_NAMES[$SERVER]} on $SERVER";
-                    clickhouse-client --echo -mn -q "INSERT INTO system.backup_actions(command) VALUES('create ${SERVER}-${BACKUP_NAMES[$SERVER]}')" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD;
-                  done;
-                  for SERVER in $CLICKHOUSE_SERVICES; do
-                    while [[ "in progress" == $(clickhouse-client -mn -q "SELECT status FROM system.backup_actions WHERE command='create ${SERVER}-${BACKUP_NAMES[$SERVER]}' FORMAT TabSeparatedRaw" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD) ]]; do
-                      echo "still in progress ${BACKUP_NAMES[$SERVER]} on $SERVER";
-                      sleep 1;
-                    done;
-                    if [[ "success" != $(clickhouse-client -mn -q "SELECT status FROM system.backup_actions WHERE command='create ${SERVER}-${BACKUP_NAMES[$SERVER]}' FORMAT TabSeparatedRaw" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD) ]]; then
-                      echo "error create ${BACKUP_NAMES[$SERVER]} on $SERVER";
-                      clickhouse-client -mn --echo -q "SELECT status,error FROM system.backup_actions WHERE command='create ${SERVER}-${BACKUP_NAMES[$SERVER]}'" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD;
-                      exit 1;
-                    fi;
-                  done;
-                  for SERVER in $CLICKHOUSE_SERVICES; do
-                    echo "upload ${DIFF_FROM[$SERVER]} ${BACKUP_NAMES[$SERVER]} on $SERVER";
-                    clickhouse-client --echo -mn -q "INSERT INTO system.backup_actions(command) VALUES('upload ${DIFF_FROM[$SERVER]} ${SERVER}-${BACKUP_NAMES[$SERVER]}')" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD;
-                  done;
-                  for SERVER in $CLICKHOUSE_SERVICES; do
-                    while [[ "in progress" == $(clickhouse-client -mn -q "SELECT status FROM system.backup_actions WHERE command='upload ${DIFF_FROM[$SERVER]} ${SERVER}-${BACKUP_NAMES[$SERVER]}'" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD) ]]; do
-                      echo "upload still in progress ${BACKUP_NAMES[$SERVER]} on $SERVER";
-                      sleep 5;
-                    done;
-                    if [[ "success" != $(clickhouse-client -mn -q "SELECT status FROM system.backup_actions WHERE command='upload ${DIFF_FROM[$SERVER]} ${SERVER}-${BACKUP_NAMES[$SERVER]}'" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD) ]]; then
-                      echo "error ${BACKUP_NAMES[$SERVER]} on $SERVER";
-                      clickhouse-client -mn --echo -q "SELECT status,error FROM system.backup_actions WHERE command='upload ${DIFF_FROM[$SERVER]} ${SERVER}-${BACKUP_NAMES[$SERVER]}'" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD;
-                      exit 1;
-                    fi;
-                    clickhouse-client --echo -mn -q "INSERT INTO system.backup_actions(command) VALUES('delete local ${SERVER}-${BACKUP_NAMES[$SERVER]}')" --host="$SERVER" --port="$CLICKHOUSE_PORT" --user="$BACKUP_USER" $BACKUP_PASSWORD;
-                  done;
-                  echo "BACKUP CREATED"
-{{- end }}
 {{- if .Parameters.restore.enabled }}
 ---
 apiVersion: batch/v1
@@ -361,15 +289,18 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_SCHEMA_RESTORE_SERVICES
-              value: "chi-{{ .Name }}-{{ .Name }}-0-0"
+              value: "chi-{{ .Name }}-{{ .Parameters.clusterName }}-0-0"
             - name: CLICKHOUSE_DATA_RESTORE_SERVICES
-              value: "chi-{{ .Name }}-{{ .Name }}-0-0"
+              value: "chi-{{ .Name }}-{{ .Parameters.clusterName }}-0-0"
             - name: CLICKHOUSE_PORT
               value: "9000"
             - name: BACKUP_USER
               value: backup
             - name: BACKUP_PASSWORD
-              value: "backup_password"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Parameters.existingSecretName }}
+                  key: backup-password
             - name: CHECK_DATABASE
               value: "default"
             - name: CHECK_TABLE
