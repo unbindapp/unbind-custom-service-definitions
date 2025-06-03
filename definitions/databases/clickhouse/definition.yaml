@@ -14,7 +14,7 @@ metadata:
 spec:
   configuration:
     files:
-      config.d/00-listen-ipv4-only.xml: |
+      config.d/99-listen-ipv4-only.xml: |
         <clickhouse>
           <!-- Delete the "::" listen_host that the base image ships
                so only the operator's 0.0.0.0 entry remains -->
@@ -188,6 +188,14 @@ spec:
                   value: "true"
                 - name: S3_DISABLE_SSL
                   value: "false"
+                # ClickHouse connection settings for backup
+                - name: CLICKHOUSE_USERNAME
+                  value: "backup"
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Parameters.existingSecretName }}
+                      key: backup-password
               ports:
                 - name: backup-rest
                   containerPort: 7171
