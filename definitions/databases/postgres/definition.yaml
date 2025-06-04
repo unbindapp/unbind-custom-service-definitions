@@ -178,7 +178,7 @@ spec:
     spec:
       containers:
       - name: initdb
-        image: {{ if .Parameters.dockerImage }}{{ .Parameters.dockerImage }}{{ else }}{{ printf "ghcr.io/unbindapp/spilo:%s-latest" (.Parameters.version | default "17") }}{{ end }}
+        image: {{ if .Parameters.dockerImage }}{{ .Parameters.dockerImage }}{{ else }}{{ printf "ghcr.io/unbindapp/spilo:%s-15445142260" (.Parameters.version | default "17") }}{{ end }}
         env:
         - name: PGPASSWORD
           valueFrom:
