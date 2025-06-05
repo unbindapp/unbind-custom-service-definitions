@@ -22,6 +22,18 @@ spec:
     version: {{ .Parameters.version | default "17" | quote }}
     parameters:
       wal_level: {{ .Parameters.walLevel | default "replica" | quote }}
+      shared_buffers: {{ .Parameters.postgresql.sharedBuffers | default "128MB" | quote }}
+      effective_cache_size: {{ .Parameters.postgresql.effectiveCacheSize | default "512MB" | quote }}
+      work_mem: {{ .Parameters.postgresql.workMem | default "4MB" | quote }}
+      maintenance_work_mem: {{ .Parameters.postgresql.maintenanceWorkMem | default "64MB" | quote }}
+      wal_buffers: {{ .Parameters.postgresql.walBuffers | default "4MB" | quote }}
+      max_worker_processes: {{ .Parameters.postgresql.maxWorkerProcesses | default "4" | quote }}
+      max_parallel_workers_per_gather: {{ .Parameters.postgresql.maxParallelWorkersPerGather | default "0" | quote }}
+      max_parallel_workers: {{ .Parameters.postgresql.maxParallelWorkers | default "0" | quote }}
+      autovacuum_max_workers: {{ .Parameters.postgresql.autovacuumMaxWorkers | default "2" | quote }}
+      autovacuum_naptime: {{ .Parameters.postgresql.autovacuumNaptime | default "30s" | quote }}
+      max_wal_size: {{ .Parameters.postgresql.maxWalSize | default "256MB" | quote }}
+      min_wal_size: {{ .Parameters.postgresql.minWalSize | default "64MB" | quote }}
   numberOfInstances: {{ .Parameters.common.replicas | default 1 }}
   allowedSourceRanges:
     - 0.0.0.0/0
