@@ -57,13 +57,35 @@ spec:
 
           <profile>
             <default>
+              <!-- Conservative single thread usage -->
               <max_threads>1</max_threads>
-              <max_block_size>8192</max_block_size>
+              <!-- Small block sizes to reduce memory pressure -->
+              <max_block_size>4096</max_block_size>
+              <!-- Single download thread -->
               <max_download_threads>1</max_download_threads>
-              <input_format_parallel_parsing>0</input_format_parallel_parsing>
-              <output_format_parallel_formatting>0</output_format_parallel_formatting>
+              <!-- Longer timeouts for slower operations -->
+              <connect_timeout>30</connect_timeout>
+              <receive_timeout>600</receive_timeout>
+              <send_timeout>600</send_timeout>
             </default>
           </profile>
+          
+          <!-- Minimal background operations -->
+          <background_pool_size>1</background_pool_size>
+          <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
+          <background_move_pool_size>1</background_move_pool_size>
+          <background_fetches_pool_size>1</background_fetches_pool_size>
+          
+          <!-- Conservative merge tree settings -->
+          <merge_tree>
+            <!-- Fewer parts to reduce overhead -->
+            <max_suspicious_broken_parts>3</max_suspicious_broken_parts>
+            <parts_to_delay_insert>100</parts_to_delay_insert>
+            <parts_to_throw_insert>200</parts_to_throw_insert>
+            <!-- Small merge sizes to reduce memory usage -->
+            <max_bytes_to_merge_at_max_space_in_pool>268435456</max_bytes_to_merge_at_max_space_in_pool>
+            <max_bytes_to_merge_at_min_space_in_pool>67108864</max_bytes_to_merge_at_min_space_in_pool>
+          </merge_tree>
         </clickhouse>
     users:
       default/password:
@@ -80,7 +102,8 @@ spec:
             name: {{ .Parameters.existingSecretName }}
             key: backup-password
     settings:
-      default/max_concurrent_queries: 100
+      # Reduce concurrent queries for low resource usage
+      default/max_concurrent_queries: 25
 
     {{- if gt (.Parameters.common.replicas | default 1) 1 }}
     # Auto-configure ZooKeeper when replicas > 1
@@ -117,11 +140,11 @@ spec:
                 - --config-file=/etc/clickhouse-server/config.xml
               resources:
                 requests:
-                  cpu: {{ .Parameters.common.resources.requests.cpu | default "100m" }}
-                  memory: {{ .Parameters.common.resources.requests.memory | default "128Mi" }}
+                  cpu: {{ .Parameters.common.resources.requests.cpu | default "50m" }}
+                  memory: {{ .Parameters.common.resources.requests.memory | default "256Mi" }}
                 limits:
                   cpu: {{ .Parameters.common.resources.limits.cpu | default "500m" }}
-                  memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
+                  memory: {{ .Parameters.common.resources.limits.memory | default "1Gi" }}
               {{- if .Parameters.environment }}
               env:
                 {{- range $k, $v := .Parameters.environment }}

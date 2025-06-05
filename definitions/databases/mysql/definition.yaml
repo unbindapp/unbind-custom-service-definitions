@@ -64,6 +64,9 @@ metadata:
 spec:
   replicas: {{ $common.replicas | default 1 }}
   mysqlConfigMapName: {{ .Name }}-custom-mycnf
+  
+  # drop the slow-log sidecar entirely
+  disableSlowQueryLogContainer: true
 
   # labels for the Services MOCO creates
   primaryServiceTemplate:
@@ -118,6 +121,26 @@ spec:
               value: {{ $v | quote }}
 {{- end }}
 {{- end }}
+      # cut the default system containers down to size
+      overwriteContainers:
+        # moco-agent sidecar (runs the probes & user management)
+        - name: agent
+          resources:
+            requests:
+              cpu: {{ $common.resources.agent.requests.cpu | default "10m" | quote }}
+              memory: {{ $common.resources.agent.requests.memory | default "32Mi" | quote }}
+            limits:
+              cpu: {{ $common.resources.agent.limits.cpu | default "50m" | quote }}
+              memory: {{ $common.resources.agent.limits.memory | default "64Mi" | quote }}
+        # moco-init (only runs once at first boot, but still needs to schedule)
+        - name: moco-init
+          resources:
+            requests:
+              cpu: {{ $common.resources.init.requests.cpu | default "20m" | quote }}
+              memory: {{ $common.resources.init.requests.memory | default "64Mi" | quote }}
+            limits:
+              cpu: {{ $common.resources.init.limits.cpu | default "40m" | quote }}
+              memory: {{ $common.resources.init.limits.memory | default "128Mi" | quote }}
   volumeClaimTemplates:
     - metadata:
         name: mysql-data
@@ -299,14 +322,6 @@ spec:
               echo "Failed to verify database creation"
               exit 1
             fi
-        # Resource limits for the mysql client
-        resources:
-          limits:
-            memory: "64Mi"
-            cpu: "250m"
-          requests:
-            memory: "32Mi"
-            cpu: "100m"
         # Readiness probe to ensure script is running properly
         readinessProbe:
           exec:
