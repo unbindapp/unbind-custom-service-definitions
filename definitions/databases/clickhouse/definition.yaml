@@ -69,13 +69,7 @@ spec:
               <send_timeout>600</send_timeout>
             </default>
           </profile>
-          
-          <!-- Minimal background operations -->
-          <background_pool_size>1</background_pool_size>
-          <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
-          <background_move_pool_size>1</background_move_pool_size>
-          <background_fetches_pool_size>1</background_fetches_pool_size>
-          
+                   
           <!-- Conservative merge tree settings -->
           <merge_tree>
             <!-- Fewer parts to reduce overhead -->
