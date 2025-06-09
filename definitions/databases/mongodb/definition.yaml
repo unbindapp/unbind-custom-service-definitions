@@ -105,6 +105,7 @@ extraDeploy:
     spec:
       schedule: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" | quote }}
       concurrencyPolicy: Forbid
+      ttlSecondsAfterFinished: 300  # 5 minutes timeout
       jobTemplate:
         spec:
           template:
@@ -235,6 +236,7 @@ extraDeploy:
         {{ $key }}: {{ $value | quote }}
         {{- end }}
     spec:
+      ttlSecondsAfterFinished: 300  # 5 minutes timeout
       template:
         spec:
           containers:

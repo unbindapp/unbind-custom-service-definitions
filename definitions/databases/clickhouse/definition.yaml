@@ -286,6 +286,7 @@ metadata:
 spec:
   schedule: "{{ .Parameters.s3.backupSchedule | default "0 2 * * *" }}"
   concurrencyPolicy: "Forbid"
+  ttlSecondsAfterFinished: 300  # 5 minutes timeout
   jobTemplate:
     spec:
       backoffLimit: 1
@@ -452,6 +453,7 @@ metadata:
     {{- end }}
 spec:
   backoffLimit: 0
+  ttlSecondsAfterFinished: 300  # 5 minutes timeout
   template:
     metadata:
       name: "{{ .Name }}-restore"

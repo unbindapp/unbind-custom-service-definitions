@@ -186,6 +186,7 @@ metadata:
 spec:
   backoffLimit: 10
   activeDeadlineSeconds: 300  # 5 minutes timeout
+  ttlSecondsAfterFinished: 300  # 5 minutes timeout
   template:
     spec:
       containers:

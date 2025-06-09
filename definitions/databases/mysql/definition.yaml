@@ -242,7 +242,7 @@ metadata:
 {{- end }}
 spec:
   backoffLimit: 10
-  ttlSecondsAfterFinished: 86400  # Cleanup after 24 hours
+  ttlSecondsAfterFinished: 300  # 5 minutes timeout
   completions: 1                  # Only need to complete once
   parallelism: 1                  # Only run one pod at a time
   template:
