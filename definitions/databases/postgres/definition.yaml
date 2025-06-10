@@ -244,8 +244,11 @@ spec:
           done
 
           # Mark initialization as complete
-          psql -h {{ .Name }}.{{ .Namespace }} -U $PGUSER -d {{ .Parameters.defaultDatabaseName }} -c "CREATE TABLE unbind_initdb_completed (id serial PRIMARY KEY, completed_at timestamp DEFAULT CURRENT_TIMESTAMP);"
-          psql -h {{ .Name }}.{{ .Namespace }} -U $PGUSER -d {{ .Parameters.defaultDatabaseName }} -c "INSERT INTO unbind_initdb_completed (id, completed_at) VALUES (1, CURRENT_TIMESTAMP);"
+          psql -h {{ .Name }}.{{ .Namespace }} -U $PGUSER -d {{ .Parameters.defaultDatabaseName }} -c "
+            CREATE TABLE unbind_initdb_completed (id serial PRIMARY KEY, completed_at timestamp DEFAULT CURRENT_TIMESTAMP);
+            INSERT INTO unbind_initdb_completed (id, completed_at) VALUES (1, CURRENT_TIMESTAMP);
+            ALTER TABLE unbind_initdb_completed ENABLE ROW LEVEL SECURITY;
+          "
           echo "Initialization completed successfully"
           exit 0
         volumeMounts:
