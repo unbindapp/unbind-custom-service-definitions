@@ -22,7 +22,7 @@ global:
 image:
   registry: ghcr.io
   repository: unbindapp/bitnami-mongodb
-  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.9{{ else if eq .Parameters.version "7.0" }}7.0.20{{ else if eq .Parameters.version "6.0" }}6.0.23{{ else }} 8.0.9{{ end }}
+  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.10{{ else if eq .Parameters.version "7.0" }}7.0.21{{ else if eq .Parameters.version "6.0" }}6.0.24{{ else }}8.0.10{{ end }}
 
 extraFlags:
   - "--wiredTigerCacheSizeGB=0.25"

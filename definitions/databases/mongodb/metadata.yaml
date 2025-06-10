@@ -3,7 +3,7 @@ description: "Standard MongoDB database using MongoDB Community Operator"
 type: "helm"
 chart:
   name: "mongodb"
-  version: "16.5.5"
+  version: "16.5.20"
   repository: "oci://registry-1.docker.io/bitnamicharts"
   repositoryName: "mongodb"
 version: "1.0.0"
