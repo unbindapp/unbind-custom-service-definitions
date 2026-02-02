@@ -1,5 +1,5 @@
 # definitions/databases/mongodb/definition.yaml
-# Helm values for Bitnami MongoDB chart
+# Helm values for CloudPirates MongoDB chart
 
 # Apply common labels to all resources created by the chart
 commonLabels:
@@ -10,30 +10,21 @@ commonLabels:
   {{ $key }}: {{ $value | quote }}
   {{- end }}
 
-# Use ReplicaSet architecture
-architecture: standalone
-
-global:
-  security:
-    allowInsecureImages: true
-
-# Image version - NOTE: Ensure this maps to a valid Bitnami tag format (e.g., "7.0", "7.0.5-debian-11-r0").
-# The exact tag might need manual adjustment based on available Bitnami images for the desired MongoDB version.
+# Image configuration - CloudPirates uses official mongo image
 image:
-  registry: ghcr.io
-  repository: unbindapp/bitnami-mongodb
-  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.10{{ else if eq .Parameters.version "7.0" }}7.0.21{{ else if eq .Parameters.version "6.0" }}6.0.24{{ else }}8.0.10{{ end }}
-
-extraFlags:
-  - "--wiredTigerCacheSizeGB=0.25"
-  - "--maxConns=100"            
-  - "--wiredTigerCollectionBlockCompressor=zstd"
+  registry: docker.io
+  repository: mongo
+  tag: {{ if eq (.Parameters.version | default "8.2") "8.2" }}8.2{{ else if eq .Parameters.version "7.0" }}7.0{{ else }}8.2{{ end }}
+  extraArgs:
+    - "--wiredTigerCacheSizeGB=0.25"
+    - "--maxConns=100"
+    - "--wiredTigerCollectionBlockCompressor=zstd"
 
 # Authentication - Requires a pre-existing secret
 auth:
   enabled: true
-  # Secret must contain keys 'mongodb-root-password' and 'mongodb-replica-set-key'
   existingSecret: {{ .Parameters.existingSecretName }}
+  existingSecretPasswordKey: mongodb-root-password
 
 # Persistence configuration
 persistence:
@@ -41,7 +32,6 @@ persistence:
   size: {{ .Parameters.common.storage | default "1Gi" | quote }}
 
 # Resource configuration
-resourcesPreset: "none" # Use custom resources below
 resources:
   requests:
     cpu: {{ .Parameters.common.resources.requests.cpu | default "100m" | quote }}
@@ -59,61 +49,44 @@ extraEnvVars:
 {{- end }}
 {{- end }}
 
-# External Access via LoadBalancer (if requested)
-{{- if .Parameters.common.exposeExternal }}
-externalAccess:
-  enabled: true
-  service:
-    type: LoadBalancer
-    ports:
-      mongodb: 27017
-    # Optional: Configure loadBalancerSourceRanges, annotations etc. if needed via .Parameters
-{{- else }}
-# Ensure external access is explicitly disabled if not requested
-externalAccess:
-  enabled: false
+# Service configuration for external access
+{{- if .Parameters.exposeExternal }}
+service:
+  type: LoadBalancer
 {{- end }}
 
-# Arbiter is enabled by default in the chart values, disable unless specifically needed/parameterized
-arbiter:
-  enabled: false
-
-# Disable metrics exporter unless explicitly configured via parameters (not currently supported)
+# Disable metrics exporter unless explicitly configured via parameters
 metrics:
   enabled: false
 
-backup:
-  enabled: false
-
+{{- if or .Parameters.s3.enabled .Parameters.restore.enabled }}
+extraObjects:
 {{- if .Parameters.s3.enabled }}
-extraDeploy:
   - apiVersion: batch/v1
     kind: CronJob
     metadata:
-      name: {{ .Name }}-s3-backup # Note: Renamed to avoid conflict if built-in backup is ever enabled
+      name: {{ .Name }}-s3-backup
       namespace: {{ .Namespace }}
       labels:
-        # Add your standard USD labels here if needed
         unbind/usd-type: {{ .Definition.Type | quote }}
         unbind/usd-version: {{ .Definition.Version | quote }}
         unbind/usd-category: databases
         app.kubernetes.io/instance: {{ .Name }}
-        app.kubernetes.io/managed-by: Helm # Indicate Helm management
+        app.kubernetes.io/managed-by: Helm
         {{- range $key, $value := .Parameters.labels }}
         {{ $key }}: {{ $value | quote }}
         {{- end }}
     spec:
       schedule: {{ .Parameters.s3.backupSchedule | default "5 5 * * *" | quote }}
       concurrencyPolicy: Forbid
-      ttlSecondsAfterFinished: 300  # 5 minutes timeout
       jobTemplate:
         spec:
+          ttlSecondsAfterFinished: 300
           template:
             spec:
               containers:
               - name: mongodump-s3
-                # Use an appropriate mongo image version based on .Parameters.version
-                image: {{ if eq (.Parameters.version | default "8.0") "8.0" }}mongo:8.0{{ else if eq .Parameters.version "7.0" }}mongo:7.0{{ else if eq .Parameters.version "6.0" }}mongo:6.0{{ else }}mongo:8.0{{ end }}
+                image: {{ if eq (.Parameters.version | default "8.0") "8.0" }}mongo:8.2{{ else if eq .Parameters.version "7.0" }}mongo:7.0{{ else if eq .Parameters.version "6.0" }}mongo:6.0{{ else }}mongo:8.2{{ end }}
                 command:
                 - /bin/sh
                 - -c
@@ -160,10 +133,10 @@ extraDeploy:
                   if [ "$BACKUP_COUNT" -gt "$RETENTION" ]; then
                     # Calculate how many to delete
                     TO_DELETE=$((BACKUP_COUNT - RETENTION))
-                    
+
                     # Get the oldest backups to delete
                     DIRS_TO_DELETE=$(echo "$BACKUP_DIRS" | head -n "$TO_DELETE")
-                    
+
                     # Delete each old backup
                     echo "$DIRS_TO_DELETE" | while read -r dir; do
                       if [ -n "$dir" ]; then
@@ -173,21 +146,18 @@ extraDeploy:
                           --endpoint-url={{ .Parameters.s3.endpoint }}
                       fi
                     done
-                    
+
                     echo "Deleted $TO_DELETE old backups, keeping $RETENTION latest backups."
                   else
                     echo "Only have $BACKUP_COUNT backups, below retention limit of $RETENTION. Nothing to delete."
                   fi
                   echo "Backup complete."
                 env:
-                # Inject root password from the main auth secret
                 - name: MONGODB_ROOT_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      # Use the same secret name as defined in auth.existingSecret
                       name: {{ .Parameters.existingSecretName }}
                       key: mongodb-root-password
-                # Inject AWS Credentials from the S3 secret
                 - name: AWS_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
@@ -214,7 +184,6 @@ extraDeploy:
                 emptyDir: {}
               restartPolicy: OnFailure
 {{- end }}
-
 {{- if .Parameters.restore.enabled }}
   - apiVersion: batch/v1
     kind: Job
@@ -222,10 +191,9 @@ extraDeploy:
       name: {{ .Name }}-s3-restore
       namespace: {{ .Namespace }}
       annotations:
-        # Helm Hook annotations
         "helm.sh/hook": post-install,post-upgrade
-        "helm.sh/hook-weight": "1" # Run after main resources are likely ready
-        "helm.sh/hook-delete-policy": before-hook-creation # Ensure it only runs effectively once
+        "helm.sh/hook-weight": "1"
+        "helm.sh/hook-delete-policy": before-hook-creation
       labels:
         unbind/usd-type: {{ .Definition.Type | quote }}
         unbind/usd-version: {{ .Definition.Version | quote }}
@@ -236,7 +204,7 @@ extraDeploy:
         {{ $key }}: {{ $value | quote }}
         {{- end }}
     spec:
-      ttlSecondsAfterFinished: 300  # 5 minutes timeout
+      ttlSecondsAfterFinished: 300
       template:
         spec:
           containers:
@@ -264,7 +232,7 @@ extraDeploy:
 
               echo "Verifying S3 connection..."
               aws s3 ls s3://{{ .Parameters.restore.bucket }} --endpoint-url={{ .Parameters.restore.endpoint }} --debug
-              
+
               echo "Downloading restore data from S3..."
               aws s3 sync s3://{{ .Parameters.restore.bucket }}/{{ .Parameters.restore.backupPrefix | default "mongodb" }}/backups/{{ .Parameters.restore.cluster }} /restore \
                 --endpoint-url={{ .Parameters.restore.endpoint }} --checksum-algorithm CRC32
@@ -282,14 +250,11 @@ extraDeploy:
                          /restore/$RESTORE_DIR
               echo "Restore complete."
             env:
-            # Inject root password from the main auth secret
             - name: MONGODB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  # Use the same secret name as defined in auth.existingSecret
                   name: {{ .Parameters.existingSecretName }}
                   key: mongodb-root-password
-            # Inject AWS Credentials from the Restore secret
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -314,5 +279,6 @@ extraDeploy:
           volumes:
           - name: restore-storage
             emptyDir: {}
-          restartPolicy: Never # Important: Change from OnFailure for hooks
+          restartPolicy: Never
+{{- end }}
 {{- end }}

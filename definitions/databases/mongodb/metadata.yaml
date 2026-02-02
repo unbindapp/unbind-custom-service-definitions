@@ -1,10 +1,10 @@
 name: "MongoDB"
-description: "Standard MongoDB database using MongoDB Community Operator"
+description: "Standard MongoDB database using CloudPirates MongoDB chart"
 type: "helm"
 chart:
   name: "mongodb"
-  version: "16.5.20"
-  repository: "oci://registry-1.docker.io/bitnamicharts"
+  version: "0.10.2"
+  repository: "oci://registry-1.docker.io/cloudpirates"
   repositoryName: "mongodb"
 version: "1.0.0"
 port: 27017
@@ -26,8 +26,8 @@ schema:
     version:
       type: "string"
       description: "MongoDB version"
-      default: "8.0"
-      enum: ["6.0", "7.0", "8.0"]
+      default: "8.2"
+      enum: ["7.0", "8.2"]
     exposeExternal:
       type: "boolean"
       description: "Expose external service"
@@ -44,4 +44,4 @@ schema:
       description: "Environment variables to be set in the MongoDB container"
       additionalProperties:
         type: "string"
-      default: {} 
+      default: {}

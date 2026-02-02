@@ -1,17 +1,11 @@
-# definition.yaml for Redis (using Bitnami Helm Chart)
-# Conditionally configures Standalone vs Replication based on replica count.
+# definitions/databases/redis/definition.yaml
+# Helm values for CloudPirates Redis chart
 
 # Set a variable for the total requested nodes, applying the default from base.yaml (which is 1)
 {{- $requestedReplicas := .Parameters.common.replicas | default 1 -}}
 
-# This file defines the values passed to the Bitnami Redis Helm chart.
-# The actual Helm release name, namespace, and chart version are expected
-# to be handled by the templating system based on .Name, .Namespace,
-# and .Parameters.chartVersion respectively.
-
 # Apply common labels to all resources created by the chart
 commonLabels:
-  # Standard USD labels
   unbind/usd-type: {{ .Definition.Type | quote }}
   unbind/usd-version: {{ .Definition.Version | quote }}
   unbind/usd-category: databases
@@ -19,9 +13,13 @@ commonLabels:
   {{ $key }}: {{ $value | quote }}
   {{- end }}
 
+# Image configuration - Redis 8.4
 image:
-  tag: {{ if eq (.Parameters.version | default "8.0") "8.0" }}8.0.2-debian-12-r1{{ else if eq .Parameters.version "7.4" }}7.4.3-debian-12-r0{{ else }}8.0.2-debian-12-r1{{ end }}
+  registry: docker.io
+  repository: redis
+  tag: "8.4"
 
+# Authentication
 auth:
   enabled: true
   existingSecret: {{ .Parameters.secretName | quote }}
@@ -30,106 +28,33 @@ auth:
 {{- if gt $requestedReplicas 1 }}
 # --- Replication Mode ---
 # Triggered if .Parameters.common.replicas >= 2
-# Deploys 1 Master + (N-1) Replicas
+# replicaCount is total nodes (1 master + N-1 replicas)
 
 architecture: replication
-
-# Master configuration (always 1 in this replication mode)
-master:
-  count: 1
-  persistence:
-    enabled: true
-    size: {{ $.Parameters.common.storage | default "1Gi" }}
-    labels:
-      # Standard USD labels
-      unbind/usd-type: {{ .Definition.Type | quote }}
-      unbind/usd-version: {{ .Definition.Version | quote }}
-      unbind/usd-category: databases
-      {{- range $key, $value := .Parameters.labels }}
-      {{ $key }}: {{ $value | quote }}
-      {{- end }}
-    
-  # Disable resource presets to use specific values below
-  resourcesPreset: "none"
-  # Map resource requests/limits from common parameters
-  resources:
-    requests:
-      cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
-      memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
-    limits:
-      cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
-      memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
-
-# Replica configuration (N-1 replicas)
-replica:
-  replicaCount: {{ sub $requestedReplicas 1 }}
-  persistence:
-    enabled: true
-    size: {{ $.Parameters.common.storage | default "1Gi" }}
-    labels:
-      # Standard USD labels
-      unbind/usd-type: {{ .Definition.Type | quote }}
-      unbind/usd-version: {{ .Definition.Version | quote }}
-      unbind/usd-category: databases
-      {{- range $key, $value := .Parameters.labels }}
-      {{ $key }}: {{ $value | quote }}
-      {{- end }}    
-  # Disable resource presets to use specific values below
-  resourcesPreset: "none"
-  resources:
-    requests:
-      cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
-      memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
-    limits:
-      cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
-      memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
+replicaCount: {{ $requestedReplicas }}
 
 {{- else }}
 # --- Standalone Mode ---
 # Triggered if .Parameters.common.replicas = 1 (or omitted, as default is 1)
-# Deploys 1 Master, 0 Replicas
 
 architecture: standalone
 
-# Master configuration (the only node)
-master:
-  count: 1
-  persistence:
-    # Enable persistence for the single master node
-    enabled: true
-    # Map storage size from common parameters
-    size: {{ $.Parameters.common.storage | default "1Gi" }}
-    labels:
-      # Standard USD labels
-      unbind/usd-type: {{ .Definition.Type | quote }}
-      unbind/usd-version: {{ .Definition.Version | quote }}
-      unbind/usd-category: databases
-      {{- range $key, $value := .Parameters.labels }}
-      {{ $key }}: {{ $value | quote }}
-      {{- end }}    
-  # Disable resource presets to use specific values below
-  resourcesPreset: "none"
-  # Map resource requests/limits from common parameters
-  resources:
-    requests:
-      cpu: {{ $.Parameters.common.resources.requests.cpu | default "100m" }}
-      memory: {{ $.Parameters.common.resources.requests.memory | default "128Mi" }}
-    limits:
-      cpu: {{ $.Parameters.common.resources.limits.cpu | default "500m" }}
-      memory: {{ $.Parameters.common.resources.limits.memory | default "256Mi" }}
-
-# Replica configuration (disabled for standalone)
-replica:
-  replicaCount: 0 
-  persistence:
-    enabled: false
-    labels:
-      # Standard USD labels
-      unbind/usd-type: {{ .Definition.Type | quote }}
-      unbind/usd-version: {{ .Definition.Version | quote }}
-      unbind/usd-category: databases
-      {{- range $key, $value := .Parameters.labels }}
-      {{ $key }}: {{ $value | quote }}
-      {{- end }}
-
 {{- end }}
+
+# Persistence configuration
+persistence:
+  enabled: true
+  size: {{ .Parameters.common.storage | default "1Gi" }}
+
+# Resource configuration
+resources:
+  requests:
+    cpu: {{ .Parameters.common.resources.requests.cpu | default "100m" }}
+    memory: {{ .Parameters.common.resources.requests.memory | default "128Mi" }}
+  limits:
+    cpu: {{ .Parameters.common.resources.limits.cpu | default "500m" }}
+    memory: {{ .Parameters.common.resources.limits.memory | default "256Mi" }}
+
+# Disable metrics
+metrics:
+  enabled: false
